@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/kakeetopius/qos-manager/cmd/web"
+	"github.com/kakeetopius/qosm/cmd/web"
 	"github.com/spf13/cobra"
 )
 
@@ -18,5 +18,6 @@ func WebCmd() *cobra.Command {
 	}
 
 	webCmd.AddCommand(web.RunCmd())
+
 	return &webCmd
 }
