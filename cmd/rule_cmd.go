@@ -11,28 +11,17 @@ import (
 var iface string
 
 func RuleCmd() *cobra.Command {
-	var flush bool
 	ruleCmd := cobra.Command{
 		Use:     "rule",
 		Short:   "Manage the traffic control rules.",
 		Aliases: []string{"r"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if flush {
-				if iface == "" {
-					return fmt.Errorf("please provide the interface")
-				}
-				return tc.FlushRules(iface)
-			}
-
-			return nil
-		},
 	}
 
 	ruleCmd.PersistentFlags().StringVarP(&iface, "iface", "i", "", "The network interface to use.")
-	ruleCmd.Flags().BoolVar(&flush, "flush", false, "Flush all rules.")
 
 	ruleCmd.AddCommand(
 		RuleAddCmd(),
+		RuleFlushCmd(),
 	)
 	return &ruleCmd
 }
@@ -76,16 +65,18 @@ func RuleAddCmd() *cobra.Command {
 	return &ruleAddCmd
 }
 
-// func RuleDeleteCmd() *cobra.Command {
-// 	var deleteAll bool
-// 	ruleDelCmd := cobra.Command{
-// 		Use:     "delete",
-// 		Short:   "Add a QoS rule.",
-// 		Aliases: []string{"d"},
-// 		RunE: func(cmd *cobra.Command, args []string) error {
-// 		},
-// 	}
-//
-// 	ruleDelCmd.Flags().BoolVarP(&deleteAll, "all", "a", false, "Delete all rules.")
-// 	return &ruleDelCmd
-// }
+func RuleFlushCmd() *cobra.Command {
+	ruleFlushCmd := cobra.Command{
+		Use:     "flush",
+		Short:   "Flush all qosm rules.",
+		Aliases: []string{"f"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if iface == "" {
+				return fmt.Errorf("please provide an interface")
+			}
+			return tc.FlushRules(iface)
+		},
+	}
+
+	return &ruleFlushCmd
+}

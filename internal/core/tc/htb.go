@@ -36,10 +36,17 @@ var (
 var errQdiscNotFound = errors.New("qdisc not found")
 
 func AddRule(iface string, target netip.Prefix, priority Priority) (err error) {
-	_, _, err = InitQdisc(iface)
+	conn, _, err := InitQdisc(iface)
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		closeErr := conn.Close()
+		if closeErr != nil {
+			err = fmt.Errorf("%w", closeErr)
+		}
+	}()
 
 	switch priority {
 	case PRIORITYHIGH:
@@ -62,13 +69,6 @@ func InitQdisc(iface string) (*tc.Tc, *tc.Object, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
-	defer func() {
-		closeErr := conn.Close()
-		if closeErr != nil {
-			err = fmt.Errorf("%w", closeErr)
-		}
-	}()
 
 	qdisc, err := getQdisc(conn)
 	if err != nil {

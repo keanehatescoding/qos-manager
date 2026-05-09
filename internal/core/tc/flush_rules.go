@@ -14,6 +14,13 @@ func FlushRules(iface string) error {
 		return err
 	}
 
+	defer func() {
+		closeErr := tcnl.Close()
+		if closeErr != nil {
+			err = fmt.Errorf("%w", closeErr)
+		}
+	}()
+
 	qdisc, err := getQdisc(tcnl)
 	if err != nil {
 		if !errors.Is(err, errQdiscNotFound) {
