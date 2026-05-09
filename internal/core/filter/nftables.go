@@ -29,18 +29,18 @@ type QoSMRules struct {
 	lowPrioRule  *nftables.Rule
 }
 
-var (
+const (
 	TABLENAME = "qosmtable"
 	CHAINNAME = "output"
 )
 
-var (
+const (
 	HIGHPRIORULENAME  = "high_prio_rule"
 	HIGHPRIOIPSETNAME = "high_prio_ips"
 	HIGHPRIOMARK      = 10
 )
 
-var (
+const (
 	LOWPRIORULENAME  = "low_prio_rule"
 	LOWPRIOIPSETNAME = "low_prio_ips"
 	LOWPRIOMARK      = 20

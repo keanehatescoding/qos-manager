@@ -39,7 +39,18 @@ func RuleAddCmd() *cobra.Command {
 				return err
 			}
 
-			err = tc.AddRule(iface, targets[0], priority)
+			var tcPriority tc.Priority
+
+			switch priority {
+			case "high":
+				tcPriority = tc.PRIORITYHIGH
+			case "low":
+				tcPriority = tc.PRIORITYLOW
+			default:
+				return fmt.Errorf("unknown priority %v", priority)
+			}
+
+			err = tc.AddRule(iface, targets[0], tcPriority)
 			if err != nil {
 				return err
 			}
@@ -48,5 +59,7 @@ func RuleAddCmd() *cobra.Command {
 	}
 
 	ruleAddCmd.Flags().StringVar(&priority, "priority", "", "Priority for the given targets.")
+	ruleAddCmd.MarkFlagRequired("priority")
+
 	return &ruleAddCmd
 }

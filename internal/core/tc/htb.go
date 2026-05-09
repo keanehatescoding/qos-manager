@@ -13,8 +13,36 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func AddRule(iface string, target netip.Prefix, priority string) error {
-	err := filter.AddTargetToHighPriority(target.Addr())
+type Priority int
+
+const (
+	PRIORITYHIGH Priority = iota + 1
+	PRIORITYLOW
+)
+
+const (
+	ROOTHANDLE = tc.HandleRoot
+)
+
+var (
+	HTBQDISCHANDLE         = core.BuildHandle(0x01, 0x00)
+	HTBHIGHPRIOCLASSHANDLE = core.BuildHandle(0x01, 0x10)
+	HTBLOWPRIOCLASSHANDLE  = core.BuildHandle(0x01, 0x20)
+	HTBDEFAULTCLASSHANDLE  = core.BuildHandle(0x01, 0x30)
+	HTBDEFAULTCLASS        = 30
+)
+
+func AddRule(iface string, target netip.Prefix, priority Priority) error {
+	var err error
+	switch priority {
+	case PRIORITYHIGH:
+		err = filter.AddTargetToHighPriority(target.Addr())
+	case PRIORITYLOW:
+		err = filter.AddTargetToLowPriority(target.Addr())
+	default:
+		return fmt.Errorf("unknown priority %v", priority)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -41,7 +69,7 @@ func createQdisc(iface string) error {
 		return err
 	}
 
-	err = tcnl.SetOption(netlink.ExtendedAcknowledge, true)
+	err = tcnl.SetOption(netlink.ExtendedAcknowledge, true) // for better error messages
 	if err != nil {
 		return err
 	}
@@ -50,8 +78,8 @@ func createQdisc(iface string) error {
 		Msg: tc.Msg{
 			Family:  unix.AF_UNSPEC,
 			Ifindex: uint32(devID.Index),
-			Handle:  core.BuildHandle(0x1, 0x0),
-			Parent:  tc.HandleRoot,
+			Handle:  HTBQDISCHANDLE,
+			Parent:  ROOTHANDLE,
 			Info:    0,
 		},
 		Attribute: tc.Attribute{
@@ -59,7 +87,7 @@ func createQdisc(iface string) error {
 			Htb: &tc.Htb{
 				Init: &tc.HtbGlob{
 					Version: 0x3,
-					Defcls:  30,
+					Defcls:  uint32(HTBDEFAULTCLASS),
 				},
 			},
 		},
@@ -74,8 +102,8 @@ func createQdisc(iface string) error {
 		Msg: tc.Msg{
 			Family:  unix.AF_UNSPEC,
 			Ifindex: uint32(devID.Index),
-			Handle:  core.BuildHandle(0x1, 0x10),
-			Parent:  core.BuildHandle(0x1, 0x0),
+			Handle:  HTBHIGHPRIOCLASSHANDLE,
+			Parent:  HTBQDISCHANDLE,
 			Info:    0,
 		},
 		Attribute: tc.Attribute{
@@ -101,8 +129,8 @@ func createQdisc(iface string) error {
 		Msg: tc.Msg{
 			Family:  unix.AF_UNSPEC,
 			Ifindex: uint32(devID.Index),
-			Handle:  core.BuildHandle(0x1, 0x30),
-			Parent:  core.BuildHandle(0x1, 0x0),
+			Handle:  HTBLOWPRIOCLASSHANDLE,
+			Parent:  HTBQDISCHANDLE,
 			Info:    0,
 		},
 		Attribute: tc.Attribute{
@@ -124,24 +152,72 @@ func createQdisc(iface string) error {
 		return err
 	}
 
-	highHandle := core.BuildHandle(0x1, 0x10)
-	filter := tc.Object{
+	defaultClass := tc.Object{
 		Msg: tc.Msg{
 			Family:  unix.AF_UNSPEC,
 			Ifindex: uint32(devID.Index),
-			Handle:  10,
-			Parent:  core.BuildHandle(0x1, 0x0),
+			Handle:  HTBDEFAULTCLASSHANDLE,
+			Parent:  HTBQDISCHANDLE,
+			Info:    0,
+		},
+		Attribute: tc.Attribute{
+			Kind: "htb",
+			Htb: &tc.Htb{
+				Parms: &tc.HtbOpt{
+					Rate: tc.RateSpec{
+						Rate: 1000000,
+					},
+					Ceil: tc.RateSpec{
+						Rate: 1000000,
+					},
+				},
+			},
+		},
+	}
+
+	fmt.Println("Adding default Class")
+	if err := tcnl.Class().Add(&defaultClass); err != nil {
+		return err
+	}
+
+	highPriofilter := tc.Object{
+		Msg: tc.Msg{
+			Family:  unix.AF_UNSPEC,
+			Ifindex: uint32(devID.Index),
+			Handle:  filter.HIGHPRIOMARK,
+			Parent:  HTBQDISCHANDLE,
 			Info:    core.FilterInfo(1, unix.ETH_P_IP),
 		},
 		Attribute: tc.Attribute{
 			Kind: "fw",
 			Fw: &tc.Fw{
-				ClassID: &highHandle,
+				ClassID: &HTBHIGHPRIOCLASSHANDLE,
 			},
 		},
 	}
-	fmt.Println("Adding filter")
-	if err := tcnl.Filter().Add(&filter); err != nil {
+	fmt.Println("Adding high filter")
+	if err := tcnl.Filter().Add(&highPriofilter); err != nil {
+		return err
+	}
+
+	lowPrioFilter := tc.Object{
+		Msg: tc.Msg{
+			Family:  unix.AF_UNSPEC,
+			Ifindex: uint32(devID.Index),
+			Handle:  filter.LOWPRIOMARK,
+			Parent:  HTBQDISCHANDLE,
+			Info:    core.FilterInfo(1, unix.ETH_P_IP),
+		},
+		Attribute: tc.Attribute{
+			Kind: "fw",
+			Fw: &tc.Fw{
+				ClassID: &HTBLOWPRIOCLASSHANDLE,
+			},
+		},
+	}
+
+	fmt.Println("Adding low filter")
+	if err := tcnl.Filter().Add(&lowPrioFilter); err != nil {
 		return err
 	}
 
