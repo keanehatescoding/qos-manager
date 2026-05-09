@@ -1,6 +1,6 @@
 package main
 
-import "github.com/kakeetopius/qos-manager/cmd"
+import "github.com/kakeetopius/qosm/cmd"
 
 func main() {
 	cmd.Execute()
