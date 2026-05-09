@@ -198,6 +198,7 @@ func addHtbClass(tcnl *tc.Tc, iface *net.Interface, class *HTBClass) (*tc.Object
 					Ceil: tc.RateSpec{
 						Rate: class.Rate,
 					},
+					Buffer: class.Burst,
 				},
 			},
 		},

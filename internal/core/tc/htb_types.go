@@ -53,7 +53,8 @@ type HTBQdisc struct {
 type HTBClass struct {
 	Handle       uint32
 	ParentHandle uint32
-	Rate         uint32
+	Rate         uint32 // in bytes per second
+	Burst        uint32
 	Priority
 }
 
