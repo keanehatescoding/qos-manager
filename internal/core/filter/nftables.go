@@ -1,4 +1,4 @@
-// Package filter contains packet filtering for packets entering classes.
+// Package filter contains packet filtering for packets entering tc classes.
 package filter
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/google/nftables/expr"
 )
 
-type NftablesCtx struct {
+type Ctx struct {
 	conn  *nftables.Conn
 	table *nftables.Table
 	chain *nftables.Chain
@@ -28,6 +28,23 @@ type QoSMRules struct {
 	highPrioRule *nftables.Rule
 	lowPrioRule  *nftables.Rule
 }
+
+var (
+	TABLENAME = "qosmtable"
+	CHAINNAME = "output"
+)
+
+var (
+	HIGHPRIORULENAME  = "high_prio_rule"
+	HIGHPRIOIPSETNAME = "high_prio_ips"
+	HIGHPRIOMARK      = 10
+)
+
+var (
+	LOWPRIORULENAME  = "low_prio_rule"
+	LOWPRIOIPSETNAME = "low_prio_ips"
+	LOWPRIOMARK      = 20
+)
 
 func AddTargetToHighPriority(target netip.Addr) error {
 	nftablesCtx, err := newCtx()
@@ -47,33 +64,33 @@ func AddTargetToLowPriority(target netip.Addr) error {
 	return addIPToQoSMIPSet(nftablesCtx.conn, nftablesCtx.lowPrioSet, target)
 }
 
-func newCtx() (NftablesCtx, error) {
+func newCtx() (Ctx, error) {
 	conn, err := nftables.New()
 	if err != nil {
-		return NftablesCtx{}, err
+		return Ctx{}, err
 	}
 
 	table, err := lookupQoSMTable(conn)
 	if err != nil {
-		return NftablesCtx{}, nil
+		return Ctx{}, err
 	}
 
 	chain, err := lookupQoSMChain(conn, table)
 	if err != nil {
-		return NftablesCtx{}, nil
+		return Ctx{}, err
 	}
 
 	ipSets, err := lookupQoSMIPSets(conn, table)
 	if err != nil {
-		return NftablesCtx{}, nil
+		return Ctx{}, err
 	}
 
 	rules, err := lookupQoSMRules(conn, table, chain, ipSets)
 	if err != nil {
-		return NftablesCtx{}, nil
+		return Ctx{}, err
 	}
 
-	return NftablesCtx{
+	return Ctx{
 		conn:      conn,
 		table:     table,
 		chain:     chain,
@@ -91,7 +108,7 @@ func lookupQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 	}
 
 	for _, table := range tables {
-		if table.Name == "qosmtable" {
+		if table.Name == TABLENAME {
 			return table, nil
 		}
 	}
@@ -102,7 +119,7 @@ func lookupQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 func addNewQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 	fmt.Println("Adding qosm table")
 	table := conn.AddTable(&nftables.Table{
-		Name:   "qosmtable",
+		Name:   TABLENAME,
 		Family: nftables.TableFamilyINet,
 	})
 
@@ -126,7 +143,7 @@ func lookupQoSMChain(conn *nftables.Conn, table *nftables.Table) (*nftables.Chai
 		if chain.Table.Name != table.Name {
 			continue
 		}
-		if chain.Name == "output" {
+		if chain.Name == CHAINNAME {
 			return chain, nil
 		}
 	}
@@ -137,7 +154,7 @@ func lookupQoSMChain(conn *nftables.Conn, table *nftables.Table) (*nftables.Chai
 func addNewQosMChain(conn *nftables.Conn, table *nftables.Table) (*nftables.Chain, error) {
 	fmt.Println("Adding QoSM chain ")
 	chain := conn.AddChain(&nftables.Chain{
-		Name:     "output",
+		Name:     CHAINNAME,
 		Hooknum:  nftables.ChainHookOutput,
 		Type:     nftables.ChainTypeFilter,
 		Table:    table,
@@ -164,23 +181,23 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 	var lowPrioRule *nftables.Rule
 
 	for _, rule := range rules {
-		if string(rule.UserData) == "high_prio_rule" {
+		if string(rule.UserData) == HIGHPRIORULENAME {
 			highPrioRule = rule
 		}
-		if string(rule.UserData) == "low_prio_rule" {
+		if string(rule.UserData) == LOWPRIORULENAME {
 			lowPrioRule = rule
 		}
 	}
 
 	if highPrioRule == nil {
-		highPrioRule, err = addMarkingRule(conn, table, chain, ipSets.highPrioSet, 10, "high_prio_rule")
+		highPrioRule, err = addMarkingRule(conn, table, chain, ipSets.highPrioSet, HIGHPRIOMARK, HIGHPRIORULENAME)
 		if err != nil {
 			return QoSMRules{}, err
 		}
 	}
 
 	if lowPrioRule == nil {
-		lowPrioRule, err = addMarkingRule(conn, table, chain, ipSets.lowPrioSet, 20, "low_prio_rule")
+		lowPrioRule, err = addMarkingRule(conn, table, chain, ipSets.lowPrioSet, LOWPRIOMARK, LOWPRIORULENAME)
 		if err != nil {
 			return QoSMRules{}, err
 		}
@@ -255,22 +272,22 @@ func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (QoSMSets, err
 	var lowPrio *nftables.Set
 
 	for _, set := range sets {
-		if set.Name == "high_prio_ips" {
+		if set.Name == HIGHPRIOIPSETNAME {
 			highPrio = set
 		}
-		if set.Name == "low_prio_ips" {
+		if set.Name == LOWPRIOIPSETNAME {
 			lowPrio = set
 		}
 	}
 
 	if highPrio == nil {
-		highPrio, err = addQoSMIPSet(conn, table, "high_prio_ips")
+		highPrio, err = addQoSMIPSet(conn, table, HIGHPRIOIPSETNAME)
 		if err != nil {
 			return QoSMSets{}, err
 		}
 	}
 	if lowPrio == nil {
-		lowPrio, err = addQoSMIPSet(conn, table, "low_prio_ips")
+		lowPrio, err = addQoSMIPSet(conn, table, LOWPRIOIPSETNAME)
 		if err != nil {
 			return QoSMSets{}, err
 		}
