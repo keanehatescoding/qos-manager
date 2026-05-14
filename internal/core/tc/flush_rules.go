@@ -21,7 +21,7 @@ func FlushRules(iface string) error {
 		}
 	}()
 
-	qdisc, err := RootQdisc(tcnl, iface)
+	qdisc, err := FindRootQdisc(tcnl, iface)
 	if err != nil {
 		if !errors.Is(err, ErrQdiscNotFound) {
 			return err

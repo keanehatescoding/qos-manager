@@ -55,6 +55,7 @@ type HTBClass struct {
 	ParentHandle uint32
 	Rate         uint32 // in bytes per second
 	Burst        uint32
+	Cburst       uint32
 	Priority
 }
 
