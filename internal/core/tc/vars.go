@@ -26,8 +26,8 @@ func ParentClass() *HTBClass {
 		Handle:       HTBPARENTCLASSHANDLE,
 		ParentHandle: HTBQDISCHANDLE,
 		Rate:         bytesPerSecFromMBsPerSec(100),
-		Burst:        minBurst(100),
-		Cburst:       minBurst(100),
+		Burst:        calcBurst(100),
+		Cburst:       calcBurst(100),
 	}
 }
 
@@ -37,8 +37,8 @@ func HighClass() *HTBClass {
 		ParentHandle: HTBPARENTCLASSHANDLE,
 		Priority:     Priority(HTBHIGHCLASSPRIO),
 		Rate:         bytesPerSecFromMBsPerSec(50),
-		Burst:        minBurst(50),
-		Cburst:       minBurst(50),
+		Burst:        calcBurst(50),
+		Cburst:       calcBurst(50),
 	}
 }
 
@@ -48,8 +48,8 @@ func LowClass() *HTBClass {
 		ParentHandle: HTBPARENTCLASSHANDLE,
 		Priority:     Priority(HTBLOWCLASSPRIO),
 		Rate:         bytesPerSecFromMBsPerSec(10),
-		Burst:        minBurst(10),
-		Cburst:       minBurst(10),
+		Burst:        calcBurst(10),
+		Cburst:       calcBurst(10),
 	}
 }
 
@@ -59,8 +59,8 @@ func DefaultClass() *HTBClass {
 		ParentHandle: HTBPARENTCLASSHANDLE,
 		Priority:     Priority(HTBDEFAULTCLASSPRIO),
 		Rate:         bytesPerSecFromMBsPerSec(40),
-		Burst:        minBurst(40),
-		Cburst:       minBurst(40),
+		Burst:        calcBurst(40),
+		Cburst:       calcBurst(40),
 	}
 }
 
@@ -82,10 +82,10 @@ func LowPrioClassFilter() *FWFilter {
 }
 
 func bytesPerSecFromMBsPerSec(megaBitsPerSecond uint32) uint32 {
-	return (megaBitsPerSecond * 1_000_000) / 8
+	return uint32(megaBitsPerSecond*1_000_000) / 8
 }
 
-func minBurst(megabitsPerSecond uint32) uint32 {
+func calcBurst(megabitsPerSecond uint32) uint32 {
 	if !core.IsClockInitialized() {
 		err := core.InitializeClock()
 		if err != nil {
@@ -93,15 +93,20 @@ func minBurst(megabitsPerSecond uint32) uint32 {
 		}
 	}
 
-	// convert Mb/s → bytes/s
+	// convert Mb/s to bytes/s
 	rateBytesPerSec := bytesPerSecFromMBsPerSec(megabitsPerSecond)
 
 	const (
 		mtu = 1500
-		hz  = 1000
 	)
 
-	burstBytes := uint32(rateBytesPerSec/uint32(hz)) + mtu
+	// GetTickInUSec returns how many kernel ticks are in one microsecond.
+	// The conversion below determines how many ticks are in one second which is the kernel frequency(hz)
+	hz := uint64(1_000_000.0 / core.GetTickInUSec())
+
+	// burstBytes is how many bytes can accumulate for each time interval when the schedular is asleep.(schedular wakeups hz times per second)
+	// duration of time the schedular is asleep is 1 / freq so numBytes = speed x time = speed x (1/freq)
+	burstBytes := (uint64(rateBytesPerSec) / hz) + mtu
 
 	// how much time in microseconds does it take to transmit the burstBytes at the given rate
 	xmitTime := core.XmitTime(uint64(rateBytesPerSec), uint32(burstBytes))
@@ -109,5 +114,7 @@ func minBurst(megabitsPerSecond uint32) uint32 {
 	// convert time to kernel ticks
 	ticks := core.Time2Tick(xmitTime)
 
+	// we return ticks as the burst because the kerenl doesnt store burst as bytesPerSecond rather as
+	// transmission duration ie how long can this class transmit at full rate before bucket empties.
 	return ticks
 }
