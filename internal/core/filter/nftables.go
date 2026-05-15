@@ -11,57 +11,6 @@ import (
 	"github.com/google/nftables/expr"
 )
 
-// Ctx holds the nftables connection context and QoS rules/sets state.
-type Ctx struct {
-	// conn is the nftables connection used for rule modifications.
-	conn *nftables.Conn
-	// table is the nftables table where rules are stored.
-	table *nftables.Table
-
-	QoSMChains
-	QoSMRules
-	QoSMSets
-}
-
-type QoSMChains struct {
-	outputChain  *nftables.Chain
-	forwardChain *nftables.Chain
-}
-
-// QoSMSets holds references to nftables sets used for QoS classification.
-type QoSMSets struct {
-	// highPrioSet is the set containing high-priority traffic IP addresses
-	highPrioSet *nftables.Set
-	// lowPrioSet is the set containing low-priority traffic IP addresses
-	lowPrioSet *nftables.Set
-}
-
-// QoSMRules holds references to nftables rules for QoS enforcement.
-type QoSMRules struct {
-	// highPrioRule applies high-priority QoS treatment.
-	highPrioRule *nftables.Rule
-	// lowPrioRule applies low-priority QoS treatment.
-	lowPrioRule *nftables.Rule
-}
-
-const (
-	TABLENAME        = "qosmtable"
-	OUTPUTCHAINNAME  = "output"
-	FORWARDCHAINNAME = "forward"
-)
-
-const (
-	HIGHPRIORULENAME  = "high_prio_rule"
-	HIGHPRIOIPSETNAME = "high_prio_ips"
-	HIGHPRIOMARK      = 10
-)
-
-const (
-	LOWPRIORULENAME  = "low_prio_rule"
-	LOWPRIOIPSETNAME = "low_prio_ips"
-	LOWPRIOMARK      = 20
-)
-
 // AddTargetsToHighPriority ip addresses to the high-priority IP set.
 func AddTargetsToHighPriority(targets []netip.Prefix) error {
 	nftablesCtx, err := newCtx()
@@ -161,7 +110,12 @@ func newCtx() (Ctx, error) {
 		return Ctx{}, err
 	}
 
-	chains, err := lookupQoSMChains(conn, table)
+	outputChain, err := lookupQoSMChain(conn, table, OUTPUTCHAINNAME, nftables.ChainHookOutput)
+	if err != nil {
+		return Ctx{}, err
+	}
+
+	forwardChain, err := lookupQoSMChain(conn, table, FORWARDCHAINNAME, nftables.ChainHookForward)
 	if err != nil {
 		return Ctx{}, err
 	}
@@ -171,22 +125,30 @@ func newCtx() (Ctx, error) {
 		return Ctx{}, err
 	}
 
-	outputRules, err := lookupQoSMRules(conn, table, chains.outputChain, ipSets)
+	outputRules, err := lookupQoSMRules(conn, table, outputChain.Chain, ipSets)
 	if err != nil {
 		return Ctx{}, err
 	}
+	outputChain.QosmRules = outputRules
 
-	_, err = lookupQoSMRules(conn, table, chains.forwardChain, ipSets)
+	filterRules, err := lookupQoSMRules(conn, table, forwardChain.Chain, ipSets)
 	if err != nil {
 		return Ctx{}, err
+	}
+	forwardChain.QosmRules = filterRules
+
+	chains := QosmChains{
+		outputChain:  outputChain,
+		forwardChain: forwardChain,
 	}
 
 	return Ctx{
-		conn:       conn,
-		table:      table,
-		QoSMChains: chains,
-		QoSMRules:  outputRules,
-		QoSMSets:   ipSets,
+		conn: conn,
+		QosmTable: QosmTable{
+			Table:      table,
+			QosmChains: chains,
+			QosmSets:   ipSets,
+		},
 	}, nil
 }
 
@@ -227,57 +189,37 @@ func addNewQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 	return table, nil
 }
 
-// lookupQoSMChains searches for the qosm output and forward chains within the specified nftables table.
-// If found, it returns the chains. If not found, it creates  new qosm chains
-func lookupQoSMChains(conn *nftables.Conn, table *nftables.Table) (QoSMChains, error) {
-	fmt.Println("Looking up qosm chains")
-
-	var outputChain *nftables.Chain
-	var forwardChain *nftables.Chain
+// lookupQoSMChains searches for the specified chain within the specified nftables table.
+// If found, it return the chain. If not found, it creates the chain
+func lookupQoSMChain(conn *nftables.Conn, table *nftables.Table, chainName string, hook *nftables.ChainHook) (QosmChain, error) {
+	fmt.Println("Looking up qosm chain ", chainName)
 
 	chains, err := conn.ListChains()
 	if err != nil {
-		return QoSMChains{}, err
+		return QosmChain{}, err
 	}
 
 	for _, chain := range chains {
 		if chain.Table.Name != table.Name {
 			continue
 		}
-		if chain.Name == OUTPUTCHAINNAME {
-			outputChain = chain
-		}
-		if chain.Name == FORWARDCHAINNAME {
-			forwardChain = chain
+		if chain.Name == chainName {
+			return QosmChain{
+				Chain: chain,
+			}, nil
 		}
 	}
 
-	if outputChain != nil && forwardChain != nil {
-		return QoSMChains{
-			outputChain:  outputChain,
-			forwardChain: forwardChain,
-		}, nil
-	}
-
-	return addNewQosMChains(conn, table)
+	return addNewQosMChain(conn, table, chainName, hook)
 }
 
-// addNewQosMChains creates and adds a new qosm chain to the specified nftables table.
-// The chain is configured as an output hook filter chain with standard filter priority.
-// Returns the created chain or an error
-func addNewQosMChains(conn *nftables.Conn, table *nftables.Table) (QoSMChains, error) {
-	fmt.Println("Adding QoSM chains ")
-	outputChain := conn.AddChain(&nftables.Chain{
-		Name:     OUTPUTCHAINNAME,
-		Hooknum:  nftables.ChainHookOutput,
-		Type:     nftables.ChainTypeFilter,
-		Table:    table,
-		Priority: nftables.ChainPriorityFilter,
-	})
-
-	forwardChain := conn.AddChain(&nftables.Chain{
-		Name:     FORWARDCHAINNAME,
-		Hooknum:  nftables.ChainHookForward,
+// addNewQosMChain creates and adds a new chain to the specified nftables table.
+// The chain is configured as the specified hook  with standard filter priority.
+func addNewQosMChain(conn *nftables.Conn, table *nftables.Table, chainName string, hook *nftables.ChainHook) (QosmChain, error) {
+	fmt.Println("Adding QoSM chain ", chainName)
+	chain := conn.AddChain(&nftables.Chain{
+		Name:     chainName,
+		Hooknum:  hook,
 		Type:     nftables.ChainTypeFilter,
 		Table:    table,
 		Priority: nftables.ChainPriorityFilter,
@@ -285,24 +227,23 @@ func addNewQosMChains(conn *nftables.Conn, table *nftables.Table) (QoSMChains, e
 
 	err := conn.Flush()
 	if err != nil {
-		return QoSMChains{}, err
+		return QosmChain{}, err
 	}
 
-	return QoSMChains{
-		outputChain:  outputChain,
-		forwardChain: forwardChain,
+	return QosmChain{
+		Chain: chain,
 	}, nil
 }
 
 // lookupQoSMRules searches for qosm marking rules within the specified chain.
 // If either rule is not found, it creates a new marking rule by calling addMarkingRule.
 // Returns a QoSMRules struct containing both rules, or an error if any operation fails.
-func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets QoSMSets) (QoSMRules, error) {
+func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets QosmSets) (QosmRules, error) {
 	fmt.Println("Looking up qosm rules for " + chain.Name)
 
 	rules, err := conn.GetRules(table, chain)
 	if err != nil {
-		return QoSMRules{}, err
+		return QosmRules{}, err
 	}
 
 	var highPrioRule *nftables.Rule
@@ -320,18 +261,18 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 	if highPrioRule == nil {
 		highPrioRule, err = addMarkingRule(conn, table, chain, ipSets.highPrioSet, HIGHPRIOMARK, HIGHPRIORULENAME)
 		if err != nil {
-			return QoSMRules{}, err
+			return QosmRules{}, err
 		}
 	}
 
 	if lowPrioRule == nil {
 		lowPrioRule, err = addMarkingRule(conn, table, chain, ipSets.lowPrioSet, LOWPRIOMARK, LOWPRIORULENAME)
 		if err != nil {
-			return QoSMRules{}, err
+			return QosmRules{}, err
 		}
 	}
 
-	return QoSMRules{
+	return QosmRules{
 		highPrioRule: highPrioRule,
 		lowPrioRule:  lowPrioRule,
 	}, nil
@@ -395,12 +336,12 @@ func addMarkingRule(conn *nftables.Conn, table *nftables.Table, chain *nftables.
 // lookupQoSMIPSets searches for high and low priority IP sets within the specified table.
 // If either IP set is not found, it creates a new IP set by calling addQoSMIPSet.
 // Returns a QoSMSets struct containing both IP sets, or an error if any operation fails.
-func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (QoSMSets, error) {
-	fmt.Println("Looking up IP Set")
+func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (QosmSets, error) {
+	fmt.Println("Looking up IP Sets")
 
 	sets, err := conn.GetSets(table)
 	if err != nil {
-		return QoSMSets{}, err
+		return QosmSets{}, err
 	}
 
 	var highPrio *nftables.Set
@@ -418,17 +359,17 @@ func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (QoSMSets, err
 	if highPrio == nil {
 		highPrio, err = addQoSMIPSet(conn, table, HIGHPRIOIPSETNAME)
 		if err != nil {
-			return QoSMSets{}, err
+			return QosmSets{}, err
 		}
 	}
 	if lowPrio == nil {
 		lowPrio, err = addQoSMIPSet(conn, table, LOWPRIOIPSETNAME)
 		if err != nil {
-			return QoSMSets{}, err
+			return QosmSets{}, err
 		}
 	}
 
-	return QoSMSets{
+	return QosmSets{
 		highPrioSet: highPrio,
 		lowPrioSet:  lowPrio,
 	}, nil
