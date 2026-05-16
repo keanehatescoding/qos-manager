@@ -55,7 +55,13 @@ func RuleAddCmd() *cobra.Command {
 				return fmt.Errorf("unknown priority %v", priority)
 			}
 
-			err = tc.AddRule(iface, targets, tcPriority)
+			htbCtx, err := tc.NewHTBCtx(iface)
+			if err != nil {
+				return err
+			}
+			defer htbCtx.Close()
+
+			err = htbCtx.AddRule(targets, tcPriority)
 			if err != nil {
 				return err
 			}
@@ -109,7 +115,7 @@ func RuleFlushCmd() *cobra.Command {
 			if iface == "" {
 				return fmt.Errorf("please provide an interface")
 			}
-			return tc.FlushRules(iface)
+			return tc.FlushQdisc(iface)
 		},
 	}
 

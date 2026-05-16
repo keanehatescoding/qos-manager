@@ -2,9 +2,11 @@ package tc
 
 import (
 	"errors"
+	"net"
 
 	"github.com/florianl/go-tc"
 	"github.com/florianl/go-tc/core"
+	"github.com/kakeetopius/qosm/internal/core/filter"
 )
 
 type Priority int
@@ -33,7 +35,9 @@ var (
 )
 
 type HTBCtx struct {
-	Conn         *tc.Tc
+	Conn  *tc.Tc
+	Iface *net.Interface
+
 	Root         *tc.Object
 	ParentClass  *tc.Object
 	HighClass    *tc.Object
@@ -42,6 +46,8 @@ type HTBCtx struct {
 
 	HighClassFilter *tc.Object
 	LowClassFilter  *tc.Object
+
+	Filter filter.NFTCtx
 }
 
 type HTBQdisc struct {

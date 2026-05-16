@@ -10,36 +10,36 @@ import (
 // NFTCtx holds the nftables connection and all QOSM table structures.
 type NFTCtx struct {
 	conn *nftables.Conn
-	QosmTable
+	qosmTable
 }
 
-// QosmTable represents the nftables table with all QOSM chains and sets.
-type QosmTable struct {
+// qosmTable represents the nftables table with all QOSM chains and sets.
+type qosmTable struct {
 	*nftables.Table
-	QosmChains
-	QosmSets
+	qosmChains
+	qosmSets
 }
 
-// QosmChain represents an nftables chain with its associated rules.
-type QosmChain struct {
+// qosmChain represents an nftables chain with its associated rules.
+type qosmChain struct {
 	*nftables.Chain
-	QosmRules
+	qosmRules
 }
 
-// QosmChains holds the output and forward chains for QOSM.
-type QosmChains struct {
-	outputChain  QosmChain
-	forwardChain QosmChain
+// qosmChains holds the output and forward chains for QOSM.
+type qosmChains struct {
+	outputChain  qosmChain
+	forwardChain qosmChain
 }
 
-// QosmSets holds the nftables ip sets for high and low priority traffic.
-type QosmSets struct {
+// qosmSets holds the nftables ip sets for high and low priority traffic.
+type qosmSets struct {
 	highPrioSet *nftables.Set
 	lowPrioSet  *nftables.Set
 }
 
-// QosmRules holds the nftables rules for high and low priority traffic.
-type QosmRules struct {
+// qosmRules holds the nftables rules for high and low priority traffic.
+type qosmRules struct {
 	highPrioRule *nftables.Rule
 	lowPrioRule  *nftables.Rule
 }
