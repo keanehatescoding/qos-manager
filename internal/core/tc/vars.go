@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/florianl/go-tc/core"
-	"github.com/kakeetopius/qosm/internal/core/filter"
+	"github.com/kakeetopius/qosm/internal/core/nft"
 )
 
 //1: Root (The HTB classfull qdisc to be attached at egress)
@@ -66,7 +66,7 @@ func DefaultClass() *HTBClass {
 
 func HighPrioClassFilter() *FWFilter {
 	return &FWFilter{
-		Handle:       filter.HIGHPRIOMARK,
+		Handle:       nft.HIGHPRIOMARK,
 		ParentHandle: HTBQDISCHANDLE,
 		ClassID:      HTBHIGHPRIOCLASSHANDLE,
 	}
@@ -74,7 +74,7 @@ func HighPrioClassFilter() *FWFilter {
 
 func LowPrioClassFilter() *FWFilter {
 	return &FWFilter{
-		Handle: filter.LOWPRIOMARK,
+		Handle: nft.LOWPRIOMARK,
 
 		ParentHandle: HTBQDISCHANDLE,
 		ClassID:      HTBLOWPRIOCLASSHANDLE,

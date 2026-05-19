@@ -1,5 +1,5 @@
-// Package filter contains packet filtering for packets entering tc classes.
-package filter
+// Package nft contains packet filtering for packets entering tc classes.
+package nft
 
 import (
 	"encoding/binary"

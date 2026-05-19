@@ -6,7 +6,7 @@ import (
 
 	"github.com/florianl/go-tc"
 	"github.com/florianl/go-tc/core"
-	"github.com/kakeetopius/qosm/internal/core/filter"
+	"github.com/kakeetopius/qosm/internal/core/nft"
 )
 
 type Priority int
@@ -47,7 +47,7 @@ type HTBCtx struct {
 	HighClassFilter *tc.Object
 	LowClassFilter  *tc.Object
 
-	Filter filter.NFTCtx
+	Filter nft.NFTCtx
 }
 
 type HTBQdisc struct {

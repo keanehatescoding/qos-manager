@@ -7,7 +7,7 @@ import (
 
 	"github.com/florianl/go-tc"
 	"github.com/florianl/go-tc/core"
-	"github.com/kakeetopius/qosm/internal/core/filter"
+	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -247,8 +247,8 @@ func getQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBCtx, error) {
 	}
 
 	filterMap := mapFiltersByHandle(filters, dev)
-	htbCtx.HighClassFilter = filterMap[filter.HIGHPRIOMARK]
-	htbCtx.LowClassFilter = filterMap[filter.LOWPRIOMARK]
+	htbCtx.HighClassFilter = filterMap[nft.HIGHPRIOMARK]
+	htbCtx.LowClassFilter = filterMap[nft.LOWPRIOMARK]
 
 	if err := validateFilters(&htbCtx); err != nil {
 		return nil, err
@@ -330,10 +330,10 @@ func mapFiltersByHandle(filters []tc.Object, iface *net.Interface) map[uint32]*t
 			continue
 		}
 		switch htbFilter.Handle {
-		case filter.HIGHPRIOMARK:
+		case nft.HIGHPRIOMARK:
 			fmt.Println("High Class Filter found")
 			filterMap[htbFilter.Handle] = &filters[i]
-		case filter.LOWPRIOMARK:
+		case nft.LOWPRIOMARK:
 			fmt.Println("Low Class Filter found")
 			filterMap[htbFilter.Handle] = &filters[i]
 		}
@@ -348,12 +348,12 @@ func validateFilters(htbCtx *HTBCtx) error {
 	case htbCtx.LowClassFilter == nil:
 		return ErrFilterNotFound{
 			FilterName:   "low_class_filter",
-			FilterHandle: filter.LOWPRIOMARK,
+			FilterHandle: nft.LOWPRIOMARK,
 		}
 	case htbCtx.HighClassFilter == nil:
 		return ErrFilterNotFound{
 			FilterName:   "high_class_filter",
-			FilterHandle: filter.HIGHPRIOMARK,
+			FilterHandle: nft.HIGHPRIOMARK,
 		}
 	}
 	return nil

@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/kakeetopius/qosm/internal/core/filter"
+	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/core/tc"
 	"github.com/kakeetopius/qosm/internal/core/util"
 	"github.com/pterm/pterm"
@@ -91,9 +91,9 @@ func RuleDeleteCmd() *cobra.Command {
 
 			switch priority {
 			case "high":
-				return filter.DeleteTargetFromHighPriority(targets)
+				return nft.DeleteTargetFromHighPriority(targets)
 			case "low":
-				return filter.DeleteTargetFromLowPriority(targets)
+				return nft.DeleteTargetFromLowPriority(targets)
 			default:
 				return fmt.Errorf("unknown priority %v", priority)
 			}
@@ -132,7 +132,7 @@ func RuleListCmd() *cobra.Command {
 				return fmt.Errorf("please provide an interface")
 			}
 
-			nftablesCtx, err := filter.NewNFTCtx()
+			nftablesCtx, err := nft.NewNFTCtx()
 			if err != nil {
 				return err
 			}

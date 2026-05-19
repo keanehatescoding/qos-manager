@@ -7,7 +7,7 @@ import (
 	"net/netip"
 
 	"github.com/florianl/go-tc"
-	"github.com/kakeetopius/qosm/internal/core/filter"
+	"github.com/kakeetopius/qosm/internal/core/nft"
 )
 
 // NewHTBCtx creates a new HTB (Hierarchical Token Bucket) qdisc context for the given interface.
@@ -43,7 +43,7 @@ func NewHTBCtx(iface string) (*HTBCtx, error) {
 
 	htbCtx.Conn = tcnl
 
-	htbCtx.Filter, err = filter.NewNFTCtx()
+	htbCtx.Filter, err = nft.NewNFTCtx()
 	if err != nil {
 		return nil, err
 	}
@@ -113,5 +113,5 @@ func FlushQdisc(iface string) error {
 			return err
 		}
 	}
-	return filter.DeleteTable()
+	return nft.DeleteTable()
 }
