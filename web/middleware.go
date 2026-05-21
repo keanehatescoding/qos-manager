@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/kakeetopius/qosm/web/routes"
 )
 
 func ErrorHandler() gin.HandlerFunc {
@@ -18,7 +19,7 @@ func ErrorHandler() gin.HandlerFunc {
 
 		err := ctx.Errors.Last().Err
 
-		var serverError ServerError
+		var serverError routes.ServerError
 		if errors.As(err, &serverError) {
 			ctx.JSON(serverError.StatusCode, gin.H{
 				"success": false,
@@ -38,7 +39,7 @@ func ErrorHandlerHTML() gin.HandlerFunc {
 
 		err := ctx.Errors.Last().Err
 
-		var serverError ServerError
+		var serverError routes.ServerError
 		if errors.As(err, &serverError) {
 			ctx.HTML(serverError.StatusCode, "fail", gin.H{
 				"Error": serverError.Error(),

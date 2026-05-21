@@ -38,6 +38,7 @@
 				QoS Engine
 			</p>
 
+			{{ if .Settings.QoSEnabled }}
 			<div class="mt-3 flex items-center gap-2">
 				<div class="h-3 w-3 rounded-full bg-green-500"></div>
 
@@ -45,6 +46,15 @@
 					Online
 				</span>
 			</div>
+			{{ else }}
+			<div class="mt-3 flex items-center gap-2">
+				<div class="h-3 w-3 rounded-full bg-red-500"></div>
+
+				<span class="font-medium text-red-400">
+					Offline
+				</span>
+			</div>
+			{{ end }}
 		</div>
 
 	</section>

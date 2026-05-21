@@ -1,117 +1,125 @@
 {{ define "content" }}
-<main class="flex-1 p-8 space-y-8">
-	<!-- System Settings -->
-	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6">
+<form hx-post="/settings/save" hx-target="#error" hx-swap="innerHTML">
+	<main class="flex-1 p-8 space-y-8">
+		<!-- System Settings -->
+		<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6">
 
-		<h3 class="text-lg font-semibold">System Settings</h3>
+			<h3 class="text-lg font-semibold">System Settings</h3>
 
-		<!-- QoS Engine Toggle -->
-		<div class="flex items-center justify-between">
-			<div>
-				<p class="font-medium">QoS Engine</p>
-				<p class="text-sm text-zinc-400">Enable or disable traffic shaping</p>
+			<!-- QoS Engine Toggle -->
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="font-medium">QoS Engine</p>
+					<p class="text-sm text-zinc-400">Enable or disable traffic shaping</p>
+				</div>
+
+				<input name="qos_enabled" type="checkbox" class="w-5 h-5 accent-blue-600" {{ if .Settings.QoSEnabled
+					}}checked{{end}}>
 			</div>
 
-			<input type="checkbox" checked class="w-5 h-5 accent-blue-600">
-		</div>
-
-		<!-- Logging Level -->
-		<div>
-			<label class="block text-sm text-zinc-300 mb-2">
-				Logging Level
-			</label>
-
-			<select class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
-				<option>Info</option>
-				<option>Warning</option>
-				<option>Error Only</option>
-				<option>Debug</option>
-			</select>
-		</div>
-
-		<!-- Max Bandwidth -->
-		<div>
-			<label class="block text-sm text-zinc-300 mb-2">
-				Max Bandwidth (Mbps)
-			</label>
-
-			<input type="number" value="100" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
-		</div>
-
-	</section>
-
-	<!-- Network Settings -->
-	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6">
-
-		<h3 class="text-lg font-semibold">Network Settings</h3>
-
-		<!-- Default Interface -->
-		<div>
-			<label class="block text-sm text-zinc-300 mb-2">
-				Default Interface
-			</label>
-
-			<select class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
-				<option>eth0</option>
-				<option>wlan0</option>
-				<option>auto</option>
-			</select>
-		</div>
-
-		<!-- DNS Override -->
-		<div class="flex items-center justify-between">
+			<!-- Logging Level -->
 			<div>
-				<p class="font-medium">DNS Override</p>
-				<p class="text-sm text-zinc-400">Force custom DNS resolution</p>
+				<label class="block text-sm text-zinc-300 mb-2">
+					Logging Level
+				</label>
+
+				<select name="logging_level" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
+					<option {{ if eq .Settings.LoggingLevel "Info" }} selected {{ end }}>Info</option>
+					<option {{ if eq .Settings.LoggingLevel "Warning" }} selected {{ end }}>Warning</option>
+					<option {{ if eq .Settings.LoggingLevel "Error" }} selected {{ end }}>Error Only</option>
+					<option {{ if eq .Settings.LoggingLevel "Debug" }} selected {{ end }}>Debug</option>
+				</select>
 			</div>
 
-			<input type="checkbox" class="w-5 h-5 accent-blue-600">
-		</div>
-
-		<!-- Primary DNS -->
-		<div>
-			<label class="block text-sm text-zinc-300 mb-2">
-				Primary DNS
-			</label>
-
-			<input type="text" placeholder="8.8.8.8"
-				class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
-		</div>
-
-	</section>
-
-	<!-- Security Settings -->
-	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6">
-
-		<h3 class="text-lg font-semibold">Security</h3>
-
-		<!-- Admin Access -->
-		<div class="flex items-center justify-between">
+			<!-- Max Bandwidth -->
 			<div>
-				<p class="font-medium">Admin Access</p>
-				<p class="text-sm text-zinc-400">Restrict configuration access</p>
+				<label class="block text-sm text-zinc-300 mb-2">
+					Max Bandwidth (Mbps)
+				</label>
+
+				<input name="max_bandwidth" type="number" value="{{ .Settings.MaxBandwidth }}"
+					class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
 			</div>
 
-			<input type="checkbox" checked class="w-5 h-5 accent-blue-600">
+		</section>
+
+		<!-- Network Settings -->
+		<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6">
+
+			<h3 class="text-lg font-semibold">Network Settings</h3>
+
+			<!-- Default Interface -->
+			<div>
+				<label class="block text-sm text-zinc-300 mb-2">
+					Default Interface
+				</label>
+
+				<select name="interface" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
+					<option>eth0</option>
+					<option>wlo1</option>
+					<option>auto</option>
+				</select>
+			</div>
+
+			<!-- DNS Override -->
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="font-medium">DNS Override</p>
+					<p class="text-sm text-zinc-400">Force custom DNS resolution</p>
+				</div>
+
+				<input name="dns_override" type="checkbox" class="w-5 h-5 accent-blue-600" {{ if .Settings.DNSOverride
+					}}checked{{ end }}>
+			</div>
+
+			<!-- Primary DNS -->
+			<div>
+				<label class="block text-sm text-zinc-300 mb-2">
+					Primary DNS
+				</label>
+
+				<input name="primary_dns" type="text" placeholder="{{ .Settings.PrimaryDNS }}"
+					class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
+			</div>
+
+		</section>
+
+		<!-- Security Settings -->
+		<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6">
+
+			<h3 class="text-lg font-semibold">Security</h3>
+
+			<!-- Admin Access -->
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="font-medium">Admin Access</p>
+					<p class="text-sm text-zinc-400">Restrict configuration access</p>
+				</div>
+
+				<input type="checkbox" checked class="w-5 h-5 accent-blue-600">
+			</div>
+
+			<!-- Session Timeout -->
+			<div>
+				<label class="block text-sm text-zinc-300 mb-2">
+					Session Timeout (minutes)
+				</label>
+
+				<input name="session_timeout" type="number" value="{{ .Settings.SessionTimeout }}"
+					class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
+			</div>
+
+		</section>
+
+		<!-- Save Button -->
+		<div class="flex justify-end">
+			<button type="submit" class="bg-blue-600 hover:bg-blue-500 transition px-6 py-3 rounded-lg font-semibold">
+				Save Settings
+			</button>
 		</div>
 
-		<!-- Session Timeout -->
-		<div>
-			<label class="block text-sm text-zinc-300 mb-2">
-				Session Timeout (minutes)
-			</label>
-
-			<input type="number" value="30" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
-		</div>
-
-	</section>
-
-	<!-- Save Button -->
-	<div class="flex justify-end">
-		<button class="bg-blue-600 hover:bg-blue-500 transition px-6 py-3 rounded-lg font-semibold">
-			Save Settings
-		</button>
-	</div>
-
-</main>
+		<!-- Error output -->
+		<div id="error" class="min-h-[1.25rem] text-center text-sm text-red-400"></div>
+	</main>
+</form>
 {{ end }}

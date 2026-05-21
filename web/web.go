@@ -12,6 +12,9 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/kakeetopius/qosm/web/db"
+	"github.com/kakeetopius/qosm/web/routes"
+	_ "modernc.org/sqlite"
 )
 
 //go:embed templates
@@ -31,11 +34,28 @@ func Run() error {
 
 	setUpSessionMgmt(router)
 
-	embedFiles(router)
+	addEmbededFiles(router)
 
-	app := ServerCtx{
-		logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+	dbConn, err := db.Connect()
+	if err != nil {
+		return err
 	}
+	err = db.SetUp(dbConn)
+	if err != nil {
+		return err
+	}
+
+	app := routes.ServerCtx{
+		Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+		DB:     dbConn,
+	}
+
+	settings, err := db.LoadSettings(dbConn)
+	if err != nil {
+		return err
+	}
+	app.ApplySettings(settings)
+
 	addRoutes(router, &app)
 
 	router.Run()
@@ -48,7 +68,7 @@ func setUpSessionMgmt(router *gin.Engine) {
 	router.Use(sessions.Sessions("qosm-session", store))
 }
 
-func addRoutes(router *gin.Engine, app *ServerCtx) {
+func addRoutes(router *gin.Engine, app *routes.ServerCtx) {
 	router.Use(ErrorHandlerHTML())
 
 	router.GET("/ping", func(c *gin.Context) {
@@ -56,20 +76,21 @@ func addRoutes(router *gin.Engine, app *ServerCtx) {
 	})
 
 	auth := router.Group("/")
-	auth.GET("/login", app.login)
-	auth.POST("/login", app.loginPost)
+	auth.GET("/login", app.Login)
+	auth.POST("/login", app.LoginPost)
 
 	admin := router.Group("/", AuthRequired())
-	admin.GET("/dashboard", app.dashboard)
-	admin.GET("/rules", app.rules)
-	admin.GET("/analytics", app.analytics)
-	admin.GET("/logs", app.logs)
-	admin.GET("/settings", app.settings)
-	admin.GET("/logout", app.logout)
-	admin.GET("/", app.dashboard)
+	admin.GET("/dashboard", app.Dashboard)
+	admin.GET("/rules", app.Rules)
+	admin.GET("/analytics", app.Analytics)
+	admin.GET("/logs", app.Logs)
+	admin.GET("/settings", app.SettingsPage)
+	admin.POST("/settings/save", app.SaveSettings)
+	admin.GET("/logout", app.Logout)
+	admin.GET("/", app.Dashboard)
 }
 
-func embedFiles(router *gin.Engine) error {
+func addEmbededFiles(router *gin.Engine) error {
 	staticSubFS, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		return err
