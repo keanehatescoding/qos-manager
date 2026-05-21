@@ -1,144 +1,116 @@
-{{ define "logs" }}
-<!DOCTYPE html>
-<html>
+{{ define "content" }}
+<main class="flex-1 p-8 space-y-6">
+	<!-- Filters -->
+	<section class="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
 
-{{ block "meta" . }} {{ end }}
+		<div class="flex gap-3">
 
-<body class="min-h-screen bg-zinc-950 text-zinc-100">
+			<select class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm">
+				<option>All Levels</option>
+				<option>Info</option>
+				<option>Warning</option>
+				<option>Error</option>
+			</select>
 
-	<div class="flex min-h-screen">
+			<select class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm">
+				<option>All Modules</option>
+				<option>QoS Engine</option>
+				<option>Rules</option>
+				<option>DNS Resolver</option>
+			</select>
 
-		<!-- Sidebar -->
-		{{ block "sidebar" . }} {{ end }}
+		</div>
 
-		<!-- Main -->
-		<main class="flex-1 p-8 space-y-6">
+		<input type="text" placeholder="Search logs..."
+			class="w-full md:w-80 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
 
-			<!-- Header -->
+	</section>
+
+	<!-- Log stream -->
+	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+
+		<!-- header -->
+		<div class="px-6 py-4 border-b border-zinc-800 flex justify-between items-center">
+
 			<div>
-				<h2 class="text-2xl font-bold">System Logs</h2>
-				<p class="text-sm text-zinc-400">
-					Real-time QoS engine and network activity logs
-				</p>
+				<h3 class="text-lg font-semibold">Live Log Stream</h3>
+				<p class="text-sm text-zinc-400">Latest system events</p>
 			</div>
 
-			<!-- Filters -->
-			<section class="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+			<button class="text-sm px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">
+				Pause
+			</button>
 
-				<div class="flex gap-3">
+		</div>
 
-					<select class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm">
-						<option>All Levels</option>
-						<option>Info</option>
-						<option>Warning</option>
-						<option>Error</option>
-					</select>
+		<!-- logs -->
+		<div class="p-6 space-y-3 font-mono text-sm">
 
-					<select class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm">
-						<option>All Modules</option>
-						<option>QoS Engine</option>
-						<option>Rules</option>
-						<option>DNS Resolver</option>
-					</select>
+			<!-- INFO -->
+			<div class="flex gap-3">
+				<span class="text-blue-400">[INFO]</span>
+				<span class="text-zinc-400">12:01:22</span>
+				<span>QoS engine initialized successfully</span>
+			</div>
 
-				</div>
+			<!-- RULE -->
+			<div class="flex gap-3">
+				<span class="text-green-400">[RULE]</span>
+				<span class="text-zinc-400">12:02:10</span>
+				<span>Applied HIGH priority to 192.168.1.12 (zoom.us)</span>
+			</div>
 
-				<input type="text" placeholder="Search logs..."
-					class="w-full md:w-80 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+			<!-- WARN -->
+			<div class="flex gap-3">
+				<span class="text-yellow-400">[WARN]</span>
+				<span class="text-zinc-400">12:03:44</span>
+				<span>High bandwidth usage detected on eth0</span>
+			</div>
 
-			</section>
+			<!-- DNS -->
+			<div class="flex gap-3">
+				<span class="text-purple-400">[DNS]</span>
+				<span class="text-zinc-400">12:04:11</span>
+				<span>Resolved youtube.com → multiple IPs (CDN)</span>
+			</div>
 
-			<!-- Log stream -->
-			<section class="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+			<!-- ERROR -->
+			<div class="flex gap-3">
+				<span class="text-red-400">[ERROR]</span>
+				<span class="text-zinc-400">12:05:30</span>
+				<span>Failed to apply rule: invalid interface eth2</span>
+			</div>
 
-				<!-- header -->
-				<div class="px-6 py-4 border-b border-zinc-800 flex justify-between items-center">
+			<!-- INFO -->
+			<div class="flex gap-3">
+				<span class="text-blue-400">[INFO]</span>
+				<span class="text-zinc-400">12:06:55</span>
+				<span>Traffic classification updated for netflix.com</span>
+			</div>
 
-					<div>
-						<h3 class="text-lg font-semibold">Live Log Stream</h3>
-						<p class="text-sm text-zinc-400">Latest system events</p>
-					</div>
+		</div>
 
-					<button class="text-sm px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">
-						Pause
-					</button>
+	</section>
 
-				</div>
+	<!-- Footer stats -->
+	<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-				<!-- logs -->
-				<div class="p-6 space-y-3 font-mono text-sm">
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">Total Logs</p>
+			<h3 class="text-2xl font-bold mt-2">18,492</h3>
+		</div>
 
-					<!-- INFO -->
-					<div class="flex gap-3">
-						<span class="text-blue-400">[INFO]</span>
-						<span class="text-zinc-400">12:01:22</span>
-						<span>QoS engine initialized successfully</span>
-					</div>
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">Warnings</p>
+			<h3 class="text-2xl font-bold mt-2 text-yellow-400">312</h3>
+		</div>
 
-					<!-- RULE -->
-					<div class="flex gap-3">
-						<span class="text-green-400">[RULE]</span>
-						<span class="text-zinc-400">12:02:10</span>
-						<span>Applied HIGH priority to 192.168.1.12 (zoom.us)</span>
-					</div>
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">Errors</p>
+			<h3 class="text-2xl font-bold mt-2 text-red-400">27</h3>
+		</div>
 
-					<!-- WARN -->
-					<div class="flex gap-3">
-						<span class="text-yellow-400">[WARN]</span>
-						<span class="text-zinc-400">12:03:44</span>
-						<span>High bandwidth usage detected on eth0</span>
-					</div>
+	</section>
 
-					<!-- DNS -->
-					<div class="flex gap-3">
-						<span class="text-purple-400">[DNS]</span>
-						<span class="text-zinc-400">12:04:11</span>
-						<span>Resolved youtube.com → multiple IPs (CDN)</span>
-					</div>
-
-					<!-- ERROR -->
-					<div class="flex gap-3">
-						<span class="text-red-400">[ERROR]</span>
-						<span class="text-zinc-400">12:05:30</span>
-						<span>Failed to apply rule: invalid interface eth2</span>
-					</div>
-
-					<!-- INFO -->
-					<div class="flex gap-3">
-						<span class="text-blue-400">[INFO]</span>
-						<span class="text-zinc-400">12:06:55</span>
-						<span>Traffic classification updated for netflix.com</span>
-					</div>
-
-				</div>
-
-			</section>
-
-			<!-- Footer stats -->
-			<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">Total Logs</p>
-					<h3 class="text-2xl font-bold mt-2">18,492</h3>
-				</div>
-
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">Warnings</p>
-					<h3 class="text-2xl font-bold mt-2 text-yellow-400">312</h3>
-				</div>
-
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">Errors</p>
-					<h3 class="text-2xl font-bold mt-2 text-red-400">27</h3>
-				</div>
-
-			</section>
-
-		</main>
-
-	</div>
-
-</body>
-
-</html>
+</main>
 {{ end }}

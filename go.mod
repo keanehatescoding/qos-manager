@@ -4,9 +4,11 @@ go 1.25.9
 
 require (
 	github.com/florianl/go-tc v0.4.8
+	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/nftables v0.3.0
 	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42
+	github.com/msteinert/pam/v2 v2.1.0
 	github.com/pterm/pterm v0.12.83
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0

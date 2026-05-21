@@ -1,0 +1,26 @@
+{{ define "topbar" }}
+<header class="flex items-center justify-between px-8 py-4 border-b border-zinc-800">
+	<div>
+		<h2 class="text-xl font-semibold">
+			{{.Heading}}
+		</h2>
+
+		<p class="text-sm text-zinc-400">
+			{{.Description}}
+		</p>
+	</div>
+
+	<div class="flex items-center gap-4">
+
+		<div class="text-right">
+			<p class="text-sm font-medium">admin</p>
+			<p class="text-xs text-zinc-400">Administrator</p>
+		</div>
+
+		<button class="rounded-lg border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800 transition">
+			<a href="/logout">Logout</a>
+		</button>
+
+	</div>
+</header>
+{{ end }}

@@ -1,146 +1,119 @@
-{{ define "analytics" }}
-<!DOCTYPE html>
-<html>
+{{ define "content" }}
+<main class="flex-1 p-8 space-y-8">
+	<!-- KPI Cards -->
+	<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
-{{ block "meta" . }} {{ end }}
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">Total Bandwidth</p>
+			<h3 class="text-3xl font-bold mt-2">120 Mbps</h3>
+		</div>
 
-<body class="min-h-screen bg-zinc-950 text-zinc-100">
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">Peak Usage</p>
+			<h3 class="text-3xl font-bold mt-2">7:45 PM</h3>
+		</div>
 
-	<div class="flex min-h-screen">
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">Active Connections</p>
+			<h3 class="text-3xl font-bold mt-2">243</h3>
+		</div>
 
-		<!-- Sidebar -->
-		{{ block "sidebar" . }} {{ end }}
-		<!-- Main -->
-		<main class="flex-1 p-8 space-y-8">
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">QoS Rules Triggered</p>
+			<h3 class="text-3xl font-bold mt-2">1,892</h3>
+		</div>
 
-			<!-- Header -->
-			<div>
-				<h2 class="text-2xl font-bold">Analytics</h2>
-				<p class="text-sm text-zinc-400">
-					Network usage insights and QoS effectiveness
-				</p>
+	</section>
+
+	<!-- Middle section -->
+	<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+		<!-- Traffic by Domain -->
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+
+			<h3 class="text-lg font-semibold mb-4">Top Domains</h3>
+
+			<div class="space-y-3 text-sm">
+
+				<div class="flex justify-between">
+					<span>youtube.com</span>
+					<span class="text-zinc-400">35%</span>
+				</div>
+
+				<div class="flex justify-between">
+					<span>netflix.com</span>
+					<span class="text-zinc-400">20%</span>
+				</div>
+
+				<div class="flex justify-between">
+					<span>github.com</span>
+					<span class="text-zinc-400">15%</span>
+				</div>
+
+				<div class="flex justify-between">
+					<span>zoom.us</span>
+					<span class="text-zinc-400">10%</span>
+				</div>
+
 			</div>
 
-			<!-- KPI Cards -->
-			<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+		</div>
 
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">Total Bandwidth</p>
-					<h3 class="text-3xl font-bold mt-2">120 Mbps</h3>
+		<!-- Top Devices -->
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+
+			<h3 class="text-lg font-semibold mb-4">Top Devices</h3>
+
+			<div class="space-y-3 text-sm">
+
+				<div class="flex justify-between">
+					<span>192.168.1.20</span>
+					<span class="text-zinc-400">45 Mbps</span>
 				</div>
 
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">Peak Usage</p>
-					<h3 class="text-3xl font-bold mt-2">7:45 PM</h3>
+				<div class="flex justify-between">
+					<span>192.168.1.12</span>
+					<span class="text-zinc-400">32 Mbps</span>
 				</div>
 
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">Active Connections</p>
-					<h3 class="text-3xl font-bold mt-2">243</h3>
+				<div class="flex justify-between">
+					<span>192.168.1.45</span>
+					<span class="text-zinc-400">18 Mbps</span>
 				</div>
 
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-					<p class="text-sm text-zinc-400">QoS Rules Triggered</p>
-					<h3 class="text-3xl font-bold mt-2">1,892</h3>
-				</div>
+			</div>
 
-			</section>
+		</div>
 
-			<!-- Middle section -->
-			<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+	</section>
 
-				<!-- Traffic by Domain -->
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+	<!-- Time Series Placeholder -->
+	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
 
-					<h3 class="text-lg font-semibold mb-4">Top Domains</h3>
+		<h3 class="text-lg font-semibold mb-4">Traffic Over Time</h3>
 
-					<div class="space-y-3 text-sm">
+		<div class="h-48 flex items-center justify-center text-zinc-500 text-sm">
+			<!-- Placeholder for future chart (Chart.js / Recharts / HTMX) -->
+			Graph goes here (bandwidth over time)
+		</div>
 
-						<div class="flex justify-between">
-							<span>youtube.com</span>
-							<span class="text-zinc-400">35%</span>
-						</div>
+	</section>
 
-						<div class="flex justify-between">
-							<span>netflix.com</span>
-							<span class="text-zinc-400">20%</span>
-						</div>
+	<!-- Event Log -->
+	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
 
-						<div class="flex justify-between">
-							<span>github.com</span>
-							<span class="text-zinc-400">15%</span>
-						</div>
+		<h3 class="text-lg font-semibold mb-4">Recent Events</h3>
 
-						<div class="flex justify-between">
-							<span>zoom.us</span>
-							<span class="text-zinc-400">10%</span>
-						</div>
+		<div class="space-y-3 text-sm text-zinc-300">
 
-					</div>
+			<p>[12:01] youtube.com classified as LOW priority</p>
+			<p>[12:03] 192.168.1.12 exceeded bandwidth threshold</p>
+			<p>[12:07] QoS rule applied to zoom.us connection</p>
+			<p>[12:10] Netflix traffic throttled successfully</p>
 
-				</div>
+		</div>
 
-				<!-- Top Devices -->
-				<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+	</section>
 
-					<h3 class="text-lg font-semibold mb-4">Top Devices</h3>
-
-					<div class="space-y-3 text-sm">
-
-						<div class="flex justify-between">
-							<span>192.168.1.20</span>
-							<span class="text-zinc-400">45 Mbps</span>
-						</div>
-
-						<div class="flex justify-between">
-							<span>192.168.1.12</span>
-							<span class="text-zinc-400">32 Mbps</span>
-						</div>
-
-						<div class="flex justify-between">
-							<span>192.168.1.45</span>
-							<span class="text-zinc-400">18 Mbps</span>
-						</div>
-
-					</div>
-
-				</div>
-
-			</section>
-
-			<!-- Time Series Placeholder -->
-			<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-
-				<h3 class="text-lg font-semibold mb-4">Traffic Over Time</h3>
-
-				<div class="h-48 flex items-center justify-center text-zinc-500 text-sm">
-					<!-- Placeholder for future chart (Chart.js / Recharts / HTMX) -->
-					Graph goes here (bandwidth over time)
-				</div>
-
-			</section>
-
-			<!-- Event Log -->
-			<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-
-				<h3 class="text-lg font-semibold mb-4">Recent Events</h3>
-
-				<div class="space-y-3 text-sm text-zinc-300">
-
-					<p>[12:01] youtube.com classified as LOW priority</p>
-					<p>[12:03] 192.168.1.12 exceeded bandwidth threshold</p>
-					<p>[12:07] QoS rule applied to zoom.us connection</p>
-					<p>[12:10] Netflix traffic throttled successfully</p>
-
-				</div>
-
-			</section>
-
-		</main>
-
-	</div>
-
-</body>
-
-</html>
+</main>
 {{ end }}

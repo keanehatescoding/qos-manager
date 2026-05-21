@@ -1,145 +1,117 @@
-{{ define "rules" }}
-<!DOCTYPE html>
-<html>
+{{ define "content" }}
+<main class="flex-1 p-8">
+	<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-{{ block "meta" . }} {{ end }}
+		<!-- FORM -->
+		<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
 
-<body class="min-h-screen bg-zinc-950 text-zinc-100">
+			<form hx-post="/rules/create" hx-target="#rule-result" hx-swap="innerHTML" class="space-y-5">
 
-	<div class="flex min-h-screen">
+				<!-- Rule Type -->
+				<div>
+					<label class="block text-sm text-zinc-300 mb-2">
+						Rule Type
+					</label>
 
-		<!-- Sidebar -->
-		{{ block "sidebar" . }} {{ end }}
+					<select name="type" class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
+						<option value="ip">IP Address</option>
+						<option value="domain">Domain</option>
+					</select>
+				</div>
 
-		<!-- Main -->
-		<main class="flex-1 p-8">
+				<!-- Target -->
+				<div>
+					<label class="block text-sm text-zinc-300 mb-2">
+						IP Address / Domain
+					</label>
 
-			<h2 class="text-2xl font-bold">Create Traffic Rule</h2>
-			<p class="text-sm text-zinc-400 mt-1">
-				Define how network traffic should be prioritized or limited
+					<input name="target" placeholder="e.g. 192.168.1.10 or youtube.com"
+						class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2" />
+				</div>
+
+				<!-- Interface -->
+				<div>
+					<label class="block text-sm text-zinc-300 mb-2">
+						Network Interface
+					</label>
+
+					<select name="interface" class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
+						<option value="eth0">eth0</option>
+						<option value="wlan0">wlan0</option>
+						<option value="any">any</option>
+					</select>
+				</div>
+
+				<!-- Priority -->
+				<div>
+					<label class="block text-sm text-zinc-300 mb-2">
+						Priority Level
+					</label>
+
+					<select name="priority" class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
+						<option value="low">Low</option>
+						<option value="medium">Medium</option>
+						<option value="high">High</option>
+						<option value="critical">Critical</option>
+					</select>
+				</div>
+
+				<!-- Direction -->
+				<div>
+					<label class="block text-sm text-zinc-300 mb-2">
+						Traffic Direction
+					</label>
+
+					<select name="direction" class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
+						<option value="both">Both</option>
+						<option value="in">Inbound</option>
+						<option value="out">Outbound</option>
+					</select>
+				</div>
+
+				<!-- Submit -->
+				<button type="submit"
+					class="w-full rounded-lg bg-blue-600 py-3 font-semibold hover:bg-blue-500 transition">
+					Add Rule
+				</button>
+
+				<!-- Result -->
+				<div id="rule-result" class="text-sm text-center text-zinc-400"></div>
+
+			</form>
+
+		</section>
+
+		<!-- INFO PANEL -->
+		<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+
+			<h3 class="text-lg font-semibold">Rule Preview</h3>
+
+			<p class="text-sm text-zinc-400 mt-2">
+				Your rule will be applied in real time to the QoS engine.
 			</p>
 
-			<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+			<div class="mt-6 space-y-3 text-sm">
 
-				<!-- FORM -->
-				<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+				<div class="p-3 rounded-lg bg-zinc-800">
+					<p class="text-zinc-400">Example Rule</p>
+					<p class="font-medium">youtube.com → LOW priority</p>
+				</div>
 
-					<form hx-post="/rules/create" hx-target="#rule-result" hx-swap="innerHTML" class="space-y-5">
-
-						<!-- Rule Type -->
-						<div>
-							<label class="block text-sm text-zinc-300 mb-2">
-								Rule Type
-							</label>
-
-							<select name="type" class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
-								<option value="ip">IP Address</option>
-								<option value="domain">Domain</option>
-							</select>
-						</div>
-
-						<!-- Target -->
-						<div>
-							<label class="block text-sm text-zinc-300 mb-2">
-								IP Address / Domain
-							</label>
-
-							<input name="target" placeholder="e.g. 192.168.1.10 or youtube.com"
-								class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2" />
-						</div>
-
-						<!-- Interface -->
-						<div>
-							<label class="block text-sm text-zinc-300 mb-2">
-								Network Interface
-							</label>
-
-							<select name="interface"
-								class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
-								<option value="eth0">eth0</option>
-								<option value="wlan0">wlan0</option>
-								<option value="any">any</option>
-							</select>
-						</div>
-
-						<!-- Priority -->
-						<div>
-							<label class="block text-sm text-zinc-300 mb-2">
-								Priority Level
-							</label>
-
-							<select name="priority"
-								class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
-								<option value="low">Low</option>
-								<option value="medium">Medium</option>
-								<option value="high">High</option>
-								<option value="critical">Critical</option>
-							</select>
-						</div>
-
-						<!-- Direction -->
-						<div>
-							<label class="block text-sm text-zinc-300 mb-2">
-								Traffic Direction
-							</label>
-
-							<select name="direction"
-								class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2">
-								<option value="both">Both</option>
-								<option value="in">Inbound</option>
-								<option value="out">Outbound</option>
-							</select>
-						</div>
-
-						<!-- Submit -->
-						<button type="submit"
-							class="w-full rounded-lg bg-blue-600 py-3 font-semibold hover:bg-blue-500 transition">
-							Add Rule
-						</button>
-
-						<!-- Result -->
-						<div id="rule-result" class="text-sm text-center text-zinc-400"></div>
-
-					</form>
-
-				</section>
-
-				<!-- INFO PANEL -->
-				<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-
-					<h3 class="text-lg font-semibold">Rule Preview</h3>
-
-					<p class="text-sm text-zinc-400 mt-2">
-						Your rule will be applied in real time to the QoS engine.
-					</p>
-
-					<div class="mt-6 space-y-3 text-sm">
-
-						<div class="p-3 rounded-lg bg-zinc-800">
-							<p class="text-zinc-400">Example Rule</p>
-							<p class="font-medium">youtube.com → LOW priority</p>
-						</div>
-
-						<div class="p-3 rounded-lg bg-zinc-800">
-							<p class="text-zinc-400">Example Rule</p>
-							<p class="font-medium">192.168.1.10 → HIGH priority</p>
-						</div>
-
-					</div>
-
-					<div class="mt-6 text-xs text-zinc-500">
-						Tip: Critical rules override all others.
-					</div>
-
-				</section>
+				<div class="p-3 rounded-lg bg-zinc-800">
+					<p class="text-zinc-400">Example Rule</p>
+					<p class="font-medium">192.168.1.10 → HIGH priority</p>
+				</div>
 
 			</div>
 
-		</main>
+			<div class="mt-6 text-xs text-zinc-500">
+				Tip: Critical rules override all others.
+			</div>
+
+		</section>
 
 	</div>
 
-</body>
-
-</html>
+</main>
 {{ end }}

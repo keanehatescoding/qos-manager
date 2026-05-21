@@ -2,12 +2,14 @@ package web
 
 import (
 	"database/sql"
+	"log/slog"
 
 	"github.com/kakeetopius/qosm/internal/core/tc"
 )
 
 type ServerCtx struct {
 	db     sql.DB
+	logger *slog.Logger
 	htbctx tc.HTBCtx
 }
 
