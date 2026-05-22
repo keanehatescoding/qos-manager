@@ -56,8 +56,8 @@ func (c *HTBCtx) InitHTBIface(ifaces ...string) error {
 	return nil
 }
 
-func (c *HTBCtx) InitHTBFilter() error {
-	nftCtx, err := nft.NewNFTCtx()
+func (c *HTBCtx) InitHTBFilter(createIfNotExists bool) error {
+	nftCtx, err := nft.NewNFTCtx(createIfNotExists)
 	if err != nil {
 		return err
 	}

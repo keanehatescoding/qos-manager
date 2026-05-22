@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/kakeetopius/qosm/internal/core/nft"
@@ -56,7 +57,7 @@ func RuleAddCmd() *cobra.Command {
 			}
 			defer htbCtx.Close()
 
-			err = htbCtx.InitHTBFilter()
+			err = htbCtx.InitHTBFilter(true)
 			if err != nil {
 				return err
 			}
@@ -93,8 +94,11 @@ func RuleDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			err = htbCtx.InitHTBFilter()
+			err = htbCtx.InitHTBFilter(false)
 			if err != nil {
+				if errors.Is(err, nft.ErrTableNotFound) {
+					return fmt.Errorf(" No tc rules added yet by qosm ")
+				}
 				return err
 			}
 
@@ -139,8 +143,11 @@ func RuleListCmd() *cobra.Command {
 				return err
 			}
 
-			err = htbCtx.InitHTBFilter()
+			err = htbCtx.InitHTBFilter(false)
 			if err != nil {
+				if errors.Is(err, nft.ErrTableNotFound) {
+					return fmt.Errorf(" No tc rules added yet by qosm ")
+				}
 				return err
 			}
 

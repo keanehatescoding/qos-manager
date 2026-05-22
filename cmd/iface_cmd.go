@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
+	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/core/tc"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +39,7 @@ func IfaceAddCmd() *cobra.Command {
 			}
 			defer htbCtx.Close()
 
-			err = htbCtx.InitHTBFilter()
+			err = htbCtx.InitHTBFilter(true)
 			if err != nil {
 				return err
 			}
@@ -78,9 +80,13 @@ func IfaceDeleteCmd() *cobra.Command {
 			}
 			defer htbCtx.Close()
 
-			err = htbCtx.InitHTBFilter()
+			err = htbCtx.InitHTBFilter(false)
+			nftTableFound := true
 			if err != nil {
-				return err
+				if !errors.Is(err, nft.ErrTableNotFound) {
+					return err
+				}
+				nftTableFound = false
 			}
 
 			for _, iface := range args {
@@ -89,13 +95,15 @@ func IfaceDeleteCmd() *cobra.Command {
 					return err
 				}
 
-				dev, err := net.InterfaceByName(iface)
-				if err != nil {
-					return err
-				}
-				err = htbCtx.NFTFilter.DeleteIfaceRules(dev.Index)
-				if err != nil {
-					return err
+				if nftTableFound {
+					dev, err := net.InterfaceByName(iface)
+					if err != nil {
+						return err
+					}
+					err = htbCtx.NFTFilter.DeleteIfaceRules(dev.Index)
+					if err != nil {
+						return err
+					}
 				}
 			}
 

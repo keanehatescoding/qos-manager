@@ -11,28 +11,28 @@ import (
 	"github.com/google/nftables/expr"
 )
 
-func NewNFTCtx() (NFTCtx, error) {
+func NewNFTCtx(create bool) (NFTCtx, error) {
 	conn, err := nftables.New()
 	if err != nil {
 		return NFTCtx{}, err
 	}
 
-	table, err := lookupQoSMTable(conn)
+	table, err := lookupQoSMTable(conn, create)
 	if err != nil {
 		return NFTCtx{}, err
 	}
 
-	outputChain, err := lookupQoSMChain(conn, table, OUTPUTCHAINNAME, nftables.ChainHookOutput)
+	outputChain, err := lookupQoSMChain(conn, table, OUTPUTCHAINNAME, nftables.ChainHookOutput, create)
 	if err != nil {
 		return NFTCtx{}, err
 	}
 
-	forwardChain, err := lookupQoSMChain(conn, table, FORWARDCHAINNAME, nftables.ChainHookForward)
+	forwardChain, err := lookupQoSMChain(conn, table, FORWARDCHAINNAME, nftables.ChainHookForward, create)
 	if err != nil {
 		return NFTCtx{}, err
 	}
 
-	ipSets, err := lookupQoSMIPSets(conn, table)
+	ipSets, err := lookupQoSMIPSets(conn, table, create)
 	if err != nil {
 		return NFTCtx{}, err
 	}
@@ -77,7 +77,7 @@ func DeleteTable() error {
 	return conn.Flush()
 }
 
-func lookupQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
+func lookupQoSMTable(conn *nftables.Conn, create bool) (*nftables.Table, error) {
 	fmt.Println("Looking up qosm table on system")
 
 	tables, err := conn.ListTables()
@@ -91,7 +91,11 @@ func lookupQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 		}
 	}
 
-	return addNewQoSMTable(conn)
+	if create {
+		return addNewQoSMTable(conn)
+	}
+
+	return nil, ErrTableNotFound
 }
 
 // addNewQoSMTable creates and adds a new qosm nftables table to the system.
@@ -113,7 +117,7 @@ func addNewQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 
 // lookupQoSMChains searches for the specified chain within the specified nftables table.
 // If found, it return the chain. If not found, it creates the chain
-func lookupQoSMChain(conn *nftables.Conn, table *nftables.Table, chainName string, hook *nftables.ChainHook) (qosmChain, error) {
+func lookupQoSMChain(conn *nftables.Conn, table *nftables.Table, chainName string, hook *nftables.ChainHook, create bool) (qosmChain, error) {
 	fmt.Println("Looking up qosm chain ", chainName)
 
 	chains, err := conn.ListChains()
@@ -132,7 +136,11 @@ func lookupQoSMChain(conn *nftables.Conn, table *nftables.Table, chainName strin
 		}
 	}
 
-	return addNewQosMChain(conn, table, chainName, hook)
+	if create {
+		return addNewQosMChain(conn, table, chainName, hook)
+	}
+
+	return qosmChain{}, ErrChainNotFound
 }
 
 // addNewQosMChain creates and adds a new chain to the specified nftables table.
@@ -194,7 +202,7 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 				return qosmRules{}, err
 			}
 		} else {
-			return qosmRules{}, ErrNotFound
+			return qosmRules{}, ErrRuleNotFound{Name: highPrioRuleName}
 		}
 	}
 
@@ -212,7 +220,7 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 				return qosmRules{}, err
 			}
 		} else {
-			return qosmRules{}, ErrNotFound
+			return qosmRules{}, ErrRuleNotFound{Name: lowPrioRuleName}
 		}
 	}
 
@@ -289,7 +297,7 @@ func addMarkingRule(conn *nftables.Conn, params ruleParams) (*nftables.Rule, err
 	return rule, nil
 }
 
-func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (qosmSets, error) {
+func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table, create bool) (qosmSets, error) {
 	fmt.Println("Looking up IP Sets")
 
 	sets, err := conn.GetSets(table)
@@ -310,15 +318,23 @@ func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (qosmSets, err
 	}
 
 	if highPrio == nil {
-		highPrio, err = addQoSMIPSet(conn, table, HIGHPRIOIPSETNAME)
-		if err != nil {
-			return qosmSets{}, err
+		if create {
+			highPrio, err = addQoSMIPSet(conn, table, HIGHPRIOIPSETNAME)
+			if err != nil {
+				return qosmSets{}, err
+			}
+		} else {
+			return qosmSets{}, ErrSetNotFound{Name: HIGHPRIOIPSETNAME}
 		}
 	}
 	if lowPrio == nil {
-		lowPrio, err = addQoSMIPSet(conn, table, LOWPRIOIPSETNAME)
-		if err != nil {
-			return qosmSets{}, err
+		if create {
+			lowPrio, err = addQoSMIPSet(conn, table, LOWPRIOIPSETNAME)
+			if err != nil {
+				return qosmSets{}, err
+			}
+		} else {
+			return qosmSets{}, ErrSetNotFound{Name: LOWPRIOIPSETNAME}
 		}
 	}
 

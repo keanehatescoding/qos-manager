@@ -8,8 +8,6 @@ import (
 	"github.com/google/nftables"
 )
 
-var ErrNotFound = errors.New("nft object not found")
-
 type IfaceIndex int
 
 // NFTCtx holds the nftables connection and all QOSM table structures.
@@ -79,6 +77,28 @@ type ruleParams struct {
 	oifaceIndex int
 	mark        int
 	ruleName    string
+}
+
+var (
+	ErrNotFound      = errors.New("nft object not found")
+	ErrTableNotFound = errors.New("qosm table not found")
+	ErrChainNotFound = errors.New("qosm chains not found")
+)
+
+type ErrSetNotFound struct {
+	Name string
+}
+
+func (e ErrSetNotFound) Error() string {
+	return "qosm set " + e.Name + " not found"
+}
+
+type ErrRuleNotFound struct {
+	Name string
+}
+
+func (e ErrRuleNotFound) Error() string {
+	return "qosm chain " + e.Name + " not found"
 }
 
 // AddTargetsToHighPriority ip addresses to the high-priority IP set.
@@ -193,7 +213,7 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 // }
 
 func (c *NFTCtx) Refresh() error {
-	ipSets, err := lookupQoSMIPSets(c.conn, c.Table)
+	ipSets, err := lookupQoSMIPSets(c.conn, c.Table, false)
 	if err != nil {
 		return err
 	}
