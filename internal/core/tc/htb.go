@@ -3,6 +3,7 @@ package tc
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 
@@ -43,9 +44,9 @@ func (c *HTBCtx) InitHTBIface(ifaces ...string) error {
 			if !errors.Is(err, ErrQdiscNotFound) {
 				return err
 			}
-			htbIface, err = createQdisc(c.Conn, dev)
+			htbIface, err = c.createQdisc(dev)
 		} else {
-			htbIface, err = getQdisc(c.Conn, dev)
+			htbIface, err = c.getQdisc(dev)
 		}
 
 		if err != nil {
@@ -58,8 +59,15 @@ func (c *HTBCtx) InitHTBIface(ifaces ...string) error {
 	return nil
 }
 
+func (c *HTBCtx) WithLogger(l *slog.Logger) {
+	c.Logger = l
+}
+
 func (c *HTBCtx) InitHTBFilter(createIfNotExists bool) error {
-	nftCtx, err := nft.NewNFTCtx(createIfNotExists)
+	nftCtx, err := nft.NewNFTCtx(nft.NFTOpts{
+		CreateIfNotExists: createIfNotExists,
+		Logger:            c.Logger,
+	})
 	if err != nil {
 		return err
 	}
@@ -72,6 +80,39 @@ func (c *HTBCtx) InitHTBFilter(createIfNotExists bool) error {
 		}
 	}
 	return nil
+}
+
+func (c *HTBCtx) AddRule(target []netip.Prefix, priority Priority) (err error) {
+	if c.NFTFilter == nil {
+		return fmt.Errorf(" HTB filter uninitialised")
+	}
+
+	switch priority {
+	case PRIORITYHIGH:
+		err = c.NFTFilter.AddTargetsToHighPriority(target)
+	case PRIORITYLOW:
+		err = c.NFTFilter.AddTargetsToLowPriority(target)
+	default:
+		return fmt.Errorf("unknown priority %v", priority)
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *HTBCtx) FlushQdisc(ifIndex int) error {
+	c.Info("tc: delete_qdisc", "ifIndex", ifIndex)
+	qdisc := c.HTBIfaces[ifIndex]
+	if qdisc.Root == nil {
+		return nil
+	}
+	return c.deleteQdisc(qdisc.Root)
+}
+
+func (c *HTBCtx) Close() error {
+	return c.Conn.Close()
 }
 
 func HasHTBQdisc(iface *net.Interface) (bool, error) {
@@ -111,38 +152,6 @@ func FindHTBEnabledIfaces() ([]string, error) {
 	return htbEnabledIfaces, nil
 }
 
-func (c *HTBCtx) AddRule(target []netip.Prefix, priority Priority) (err error) {
-	if c.NFTFilter == nil {
-		return fmt.Errorf(" HTB filter uninitialised")
-	}
-
-	switch priority {
-	case PRIORITYHIGH:
-		err = c.NFTFilter.AddTargetsToHighPriority(target)
-	case PRIORITYLOW:
-		err = c.NFTFilter.AddTargetsToLowPriority(target)
-	default:
-		return fmt.Errorf("unknown priority %v", priority)
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *HTBCtx) Close() error {
-	return c.Conn.Close()
-}
-
-func (c *HTBCtx) FlushQdisc(ifIndex int) error {
-	qdisc := c.HTBIfaces[ifIndex]
-	if qdisc.Root == nil {
-		return nil
-	}
-	return deleteQdisc(c.Conn, qdisc.Root)
-}
-
 func FlushQdisc(iface string) error {
 	tcnl, err := tc.Open(&tc.Config{})
 	if err != nil {
@@ -163,12 +172,14 @@ func FlushQdisc(iface string) error {
 
 	qdisc, err := findRootQdisc(tcnl, dev)
 	if err != nil {
-		if !errors.Is(err, ErrQdiscNotFound) {
-			return err
-		}
+		return err
+	}
+
+	htbCtx := HTBCtx{
+		Conn: tcnl,
 	}
 	if qdisc != nil {
-		err = deleteQdisc(tcnl, qdisc)
+		err = htbCtx.deleteQdisc(qdisc)
 		if err != nil {
 			return err
 		}

@@ -7,7 +7,6 @@ import (
 	"slices"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kakeetopius/qosm/internal/core/tc"
 	"github.com/kakeetopius/qosm/web/db"
 )
 
@@ -136,7 +135,7 @@ func disableQoS(app *ServerCtx, ifaceName string) error {
 		return nil
 	}
 
-	err := tc.FlushQdisc(ifaceName)
+	err := app.HTBCtx.FlushQdisc(iface.Index)
 	if err != nil {
 		return err
 	}

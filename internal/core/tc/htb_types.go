@@ -2,6 +2,7 @@ package tc
 
 import (
 	"errors"
+	"log/slog"
 
 	"github.com/florianl/go-tc"
 	"github.com/florianl/go-tc/core"
@@ -37,6 +38,8 @@ type HTBCtx struct {
 	Conn      *tc.Tc
 	HTBIfaces map[int]HTBIface
 	NFTFilter *nft.NFTCtx
+
+	Logger *slog.Logger
 }
 
 type HTBIface struct {

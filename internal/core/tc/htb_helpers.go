@@ -2,7 +2,7 @@
 package tc
 
 import (
-	"fmt"
+	"log/slog"
 	"net"
 
 	"github.com/florianl/go-tc"
@@ -11,6 +11,154 @@ import (
 	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
+
+func (c *HTBCtx) Debug(msg string, args ...any) {
+	if c.Logger != nil {
+		c.Logger.Debug(msg, args...)
+		return
+	}
+
+	slog.Debug(msg, args...)
+}
+
+func (c *HTBCtx) Info(msg string, args ...any) {
+	if c.Logger != nil {
+		c.Logger.Info(msg, args...)
+		return
+	}
+
+	slog.Info(msg, args...)
+}
+
+func (c *HTBCtx) Warn(msg string, args ...any) {
+	if c.Logger != nil {
+		c.Logger.Warn(msg, args...)
+		return
+	}
+
+	slog.Warn(msg, args...)
+}
+
+func (c *HTBCtx) Error(msg string, args ...any) {
+	if c.Logger != nil {
+		c.Logger.Error(msg, args...)
+		return
+	}
+
+	slog.Error(msg, args...)
+}
+
+func (c *HTBCtx) createQdisc(dev *net.Interface) (*HTBIface, error) {
+	err := c.Conn.SetOption(netlink.ExtendedAcknowledge, true) // for better error messages
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding root qdisc", "name", "root")
+	rootHtbQdisc, err := c.addRootQdisc(dev)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding class", "name", "htb_parent_class")
+	htbParentClass, err := c.addHtbClass(dev, ParentClass())
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding class", "name", "high_priority_class")
+	highClass, err := c.addHtbClass(dev, HighClass())
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding class", "name", "low_priority_class")
+	lowClass, err := c.addHtbClass(dev, LowClass())
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding class", "name", "default_class")
+	defaultClass, err := c.addHtbClass(dev, DefaultClass())
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding filter", "name", "high_priority_filter")
+	highPriofilter, err := c.addFWFilter(dev, HighPrioClassFilter())
+	if err != nil {
+		return nil, err
+	}
+
+	c.Debug("tc: adding filter", "name", "low_priority_filter")
+	lowPrioFilter, err := c.addFWFilter(dev, LowPrioClassFilter())
+	if err != nil {
+		return nil, err
+	}
+
+	return &HTBIface{
+		Root:            rootHtbQdisc,
+		ParentClass:     htbParentClass,
+		HighClass:       highClass,
+		LowClass:        lowClass,
+		DefaultClass:    defaultClass,
+		LowClassFilter:  lowPrioFilter,
+		HighClassFilter: highPriofilter,
+	}, nil
+}
+
+func (c *HTBCtx) getQdisc(dev *net.Interface) (*HTBIface, error) {
+	qdiscs, qerr := c.Conn.Qdisc().Get()
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	if len(qdiscs) == 0 {
+		return nil, ErrQdiscNotFound
+	}
+
+	htbCtx := HTBIface{}
+
+	htbCtx.Root = findQdiscByHandle(qdiscs, HTBQDISCHANDLE, dev)
+	if htbCtx.Root == nil {
+		return nil, ErrQdiscNotFound
+	}
+
+	msg := tc.Msg{
+		Family:  unix.AF_UNSPEC,
+		Ifindex: uint32(dev.Index),
+	}
+
+	classes, qerr := c.Conn.Class().Get(&msg)
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	classMap := c.mapClassesByHandle(classes, dev)
+	htbCtx.ParentClass = classMap[HTBPARENTCLASSHANDLE]
+	htbCtx.HighClass = classMap[HTBHIGHPRIOCLASSHANDLE]
+	htbCtx.LowClass = classMap[HTBLOWPRIOCLASSHANDLE]
+	htbCtx.DefaultClass = classMap[HTBDEFAULTCLASSHANDLE]
+
+	if err := validateClasses(&htbCtx); err != nil {
+		return nil, err
+	}
+
+	filters, qerr := c.Conn.Filter().Get(&msg)
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	filterMap := c.mapFiltersByHandle(filters, dev)
+	htbCtx.HighClassFilter = filterMap[nft.HIGHPRIOMARK]
+	htbCtx.LowClassFilter = filterMap[nft.LOWPRIOMARK]
+
+	if err := validateFilters(&htbCtx); err != nil {
+		return nil, err
+	}
+
+	return &htbCtx, nil
+}
 
 // findRootQdisc searches for the root HTB  queue discipline
 // on the specified network interface. It queries all qdiscs on the system and matches
@@ -34,7 +182,7 @@ func findRootQdisc(conn *tc.Tc, dev *net.Interface) (*tc.Object, error) {
 // addRootQdisc adds a root HTB  queue discipline to the
 // specified network interface.
 // Returns a pointer to the created qdisc object or an error if the operation fails.
-func addRootQdisc(tcnl *tc.Tc, iface *net.Interface) (*tc.Object, error) {
+func (c *HTBCtx) addRootQdisc(iface *net.Interface) (*tc.Object, error) {
 	rootQdisc := Root()
 	rootHtbQdisc := tc.Object{
 		Msg: tc.Msg{
@@ -55,8 +203,7 @@ func addRootQdisc(tcnl *tc.Tc, iface *net.Interface) (*tc.Object, error) {
 		},
 	}
 
-	fmt.Println("Adding Root Qdisc")
-	err := tcnl.Qdisc().Add(&rootHtbQdisc)
+	err := c.Conn.Qdisc().Add(&rootHtbQdisc)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +214,7 @@ func addRootQdisc(tcnl *tc.Tc, iface *net.Interface) (*tc.Object, error) {
 // addHtbClass adds an HTB  traffic class to the specified network interface.
 // If priority in the class is non-zero, it is set on the class
 // Returns a pointer to the created class object or an error if the operation fails.
-func addHtbClass(tcnl *tc.Tc, iface *net.Interface, class *HTBClass) (*tc.Object, error) {
+func (c *HTBCtx) addHtbClass(iface *net.Interface, class *HTBClass) (*tc.Object, error) {
 	classObj := tc.Object{
 		Msg: tc.Msg{
 			Family:  unix.AF_UNSPEC,
@@ -97,7 +244,7 @@ func addHtbClass(tcnl *tc.Tc, iface *net.Interface, class *HTBClass) (*tc.Object
 		classObj.Htb.Parms.Prio = uint32(class.Priority)
 	}
 
-	err := tcnl.Class().Add(&classObj)
+	err := c.Conn.Class().Add(&classObj)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +254,7 @@ func addHtbClass(tcnl *tc.Tc, iface *net.Interface, class *HTBClass) (*tc.Object
 
 // addFWFilter adds a firewall (fw) filter to the specified network interface.
 // Returns a pointer to the created filter object or an error if the operation fails.
-func addFWFilter(tcnl *tc.Tc, iface *net.Interface, filter *FWFilter) (*tc.Object, error) {
+func (c *HTBCtx) addFWFilter(iface *net.Interface, filter *FWFilter) (*tc.Object, error) {
 	filterObj := tc.Object{
 		Msg: tc.Msg{
 			Family:  unix.AF_UNSPEC,
@@ -123,7 +270,7 @@ func addFWFilter(tcnl *tc.Tc, iface *net.Interface, filter *FWFilter) (*tc.Objec
 			},
 		},
 	}
-	err := tcnl.Filter().Add(&filterObj)
+	err := c.Conn.Filter().Add(&filterObj)
 	if err != nil {
 		return nil, err
 	}
@@ -131,124 +278,11 @@ func addFWFilter(tcnl *tc.Tc, iface *net.Interface, filter *FWFilter) (*tc.Objec
 	return &filterObj, nil
 }
 
-func createQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBIface, error) {
-	err := tcnl.SetOption(netlink.ExtendedAcknowledge, true) // for better error messages
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding root qdisc")
-	rootHtbQdisc, err := addRootQdisc(tcnl, dev)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding Parent Class.")
-	htbParentClass, err := addHtbClass(tcnl, dev, ParentClass())
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding High Class")
-	highClass, err := addHtbClass(tcnl, dev, HighClass())
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding Low Class")
-	lowClass, err := addHtbClass(tcnl, dev, LowClass())
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding default Class")
-	defaultClass, err := addHtbClass(tcnl, dev, DefaultClass())
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding High Priority Filter")
-	highPriofilter, err := addFWFilter(tcnl, dev, HighPrioClassFilter())
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("Adding low filter")
-	lowPrioFilter, err := addFWFilter(tcnl, dev, LowPrioClassFilter())
-	if err != nil {
-		return nil, err
-	}
-
-	return &HTBIface{
-		Root:            rootHtbQdisc,
-		ParentClass:     htbParentClass,
-		HighClass:       highClass,
-		LowClass:        lowClass,
-		DefaultClass:    defaultClass,
-		LowClassFilter:  lowPrioFilter,
-		HighClassFilter: highPriofilter,
-	}, nil
-}
-
-func getQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBIface, error) {
-	qdiscs, qerr := tcnl.Qdisc().Get()
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	if len(qdiscs) == 0 {
-		return nil, ErrQdiscNotFound
-	}
-
-	htbCtx := HTBIface{}
-
-	htbCtx.Root = findQdiscByHandle(qdiscs, HTBQDISCHANDLE, dev)
-	if htbCtx.Root == nil {
-		return nil, ErrQdiscNotFound
-	}
-
-	msg := tc.Msg{
-		Family:  unix.AF_UNSPEC,
-		Ifindex: uint32(dev.Index),
-	}
-
-	classes, qerr := tcnl.Class().Get(&msg)
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	classMap := mapClassesByHandle(classes, dev)
-	htbCtx.ParentClass = classMap[HTBPARENTCLASSHANDLE]
-	htbCtx.HighClass = classMap[HTBHIGHPRIOCLASSHANDLE]
-	htbCtx.LowClass = classMap[HTBLOWPRIOCLASSHANDLE]
-	htbCtx.DefaultClass = classMap[HTBDEFAULTCLASSHANDLE]
-
-	if err := validateClasses(&htbCtx); err != nil {
-		return nil, err
-	}
-
-	filters, qerr := tcnl.Filter().Get(&msg)
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	filterMap := mapFiltersByHandle(filters, dev)
-	htbCtx.HighClassFilter = filterMap[nft.HIGHPRIOMARK]
-	htbCtx.LowClassFilter = filterMap[nft.LOWPRIOMARK]
-
-	if err := validateFilters(&htbCtx); err != nil {
-		return nil, err
-	}
-
-	return &htbCtx, nil
-}
-
 // findQdiscByHandle searches for an HTB qdisc with the specified handle.
 // Returns a pointer to the qdisc if found, nil otherwise.
 func findQdiscByHandle(qdiscs []tc.Object, handle uint32, iface *net.Interface) *tc.Object {
 	for i, qdisc := range qdiscs {
 		if qdisc.Kind == "htb" && qdisc.Handle == handle && qdisc.Ifindex == uint32(iface.Index) {
-			fmt.Println("Qdisc found")
 			return &qdiscs[i]
 		}
 	}
@@ -256,7 +290,7 @@ func findQdiscByHandle(qdiscs []tc.Object, handle uint32, iface *net.Interface) 
 }
 
 // mapClassesByHandle creates a map of HTB classes indexed by their handles.
-func mapClassesByHandle(classes []tc.Object, iface *net.Interface) map[uint32]*tc.Object {
+func (c *HTBCtx) mapClassesByHandle(classes []tc.Object, iface *net.Interface) map[uint32]*tc.Object {
 	classMap := make(map[uint32]*tc.Object)
 	for i, class := range classes {
 		if class.Kind != "htb" || class.Ifindex != uint32(iface.Index) {
@@ -264,16 +298,16 @@ func mapClassesByHandle(classes []tc.Object, iface *net.Interface) map[uint32]*t
 		}
 		switch class.Handle {
 		case HTBPARENTCLASSHANDLE:
-			fmt.Println("Parent class found")
+			c.Debug("tc: class found", "name", "parent_class")
 			classMap[class.Handle] = &classes[i]
 		case HTBHIGHPRIOCLASSHANDLE:
-			fmt.Println("High Class found")
+			c.Debug("tc: class found", "name", "high_priority_class")
 			classMap[class.Handle] = &classes[i]
 		case HTBLOWPRIOCLASSHANDLE:
-			fmt.Println("Low Class found")
+			c.Debug("tc: class found", "name", "low_priority_class")
 			classMap[class.Handle] = &classes[i]
 		case HTBDEFAULTCLASSHANDLE:
-			fmt.Println("Default Class found")
+			c.Debug("tc: class found", "name", "default_class")
 			classMap[class.Handle] = &classes[i]
 		}
 	}
@@ -309,7 +343,7 @@ func validateClasses(htbCtx *HTBIface) error {
 }
 
 // mapFiltersByHandle creates a map of firewall filters indexed by their handles.
-func mapFiltersByHandle(filters []tc.Object, iface *net.Interface) map[uint32]*tc.Object {
+func (c *HTBCtx) mapFiltersByHandle(filters []tc.Object, iface *net.Interface) map[uint32]*tc.Object {
 	filterMap := make(map[uint32]*tc.Object)
 	for i, htbFilter := range filters {
 		if htbFilter.Kind != "fw" || htbFilter.Ifindex != uint32(iface.Index) {
@@ -317,10 +351,10 @@ func mapFiltersByHandle(filters []tc.Object, iface *net.Interface) map[uint32]*t
 		}
 		switch htbFilter.Handle {
 		case nft.HIGHPRIOMARK:
-			fmt.Println("High Class Filter found")
+			c.Debug("tc: filter found", "name", "high_priority_filter")
 			filterMap[htbFilter.Handle] = &filters[i]
 		case nft.LOWPRIOMARK:
-			fmt.Println("Low Class Filter found")
+			c.Debug("tc: filter found", "name", "low_priority_filter")
 			filterMap[htbFilter.Handle] = &filters[i]
 		}
 	}
@@ -345,9 +379,8 @@ func validateFilters(htbCtx *HTBIface) error {
 	return nil
 }
 
-func deleteQdisc(tcnl *tc.Tc, qdisc *tc.Object) error {
-	fmt.Println("Deleting qdisc on root.")
-	err := tcnl.Qdisc().Delete(qdisc)
+func (c *HTBCtx) deleteQdisc(qdisc *tc.Object) error {
+	err := c.Conn.Qdisc().Delete(qdisc)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/core/tc"
@@ -56,6 +58,12 @@ func RuleAddCmd() *cobra.Command {
 				return err
 			}
 			defer htbCtx.Close()
+			if debug {
+				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				}))
+				htbCtx.WithLogger(logger)
+			}
 
 			err = htbCtx.InitHTBFilter(true)
 			if err != nil {
@@ -93,6 +101,12 @@ func RuleDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if debug {
+				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				}))
+				htbCtx.WithLogger(logger)
+			}
 
 			err = htbCtx.InitHTBFilter(false)
 			if err != nil {
@@ -125,7 +139,16 @@ func RuleFlushCmd() *cobra.Command {
 		Short:   "Flush all qosm rules.",
 		Aliases: []string{"f"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nft.DeleteTable()
+			err := nft.DeleteTable()
+			if err != nil {
+				if errors.Is(err, nft.ErrTableNotFound) {
+					return fmt.Errorf("no rules to flush")
+				}
+				return err
+			}
+
+			fmt.Println("Rules flushed successfully.")
+			return nil
 		},
 	}
 
@@ -141,6 +164,13 @@ func RuleListCmd() *cobra.Command {
 			htbCtx, err := tc.NewHTBCtx()
 			if err != nil {
 				return err
+			}
+
+			if debug {
+				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				}))
+				htbCtx.WithLogger(logger)
 			}
 
 			err = htbCtx.InitHTBFilter(false)

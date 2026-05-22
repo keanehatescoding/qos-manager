@@ -3,6 +3,7 @@ package nft
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 
 	"github.com/google/nftables"
@@ -14,6 +15,8 @@ type IfaceIndex int
 type NFTCtx struct {
 	conn *nftables.Conn
 	qosmTable
+
+	Logger *slog.Logger
 }
 
 // qosmTable represents the nftables table with all QOSM chains and sets.
@@ -101,6 +104,42 @@ func (e ErrRuleNotFound) Error() string {
 	return "qosm chain " + e.Name + " not found"
 }
 
+func Debug(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Debug(msg, args...)
+		return
+	}
+
+	slog.Debug(msg, args...)
+}
+
+func Info(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Info(msg, args...)
+		return
+	}
+
+	slog.Info(msg, args...)
+}
+
+func Warn(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Warn(msg, args...)
+		return
+	}
+
+	slog.Warn(msg, args...)
+}
+
+func Error(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Error(msg, args...)
+		return
+	}
+
+	slog.Error(msg, args...)
+}
+
 // AddTargetsToHighPriority ip addresses to the high-priority IP set.
 func (c *NFTCtx) AddTargetsToHighPriority(targets []netip.Prefix) error {
 	return addIPsToQoSMIPSet(c.conn, c.highPrioSet, targets)
@@ -136,14 +175,19 @@ func (c *NFTCtx) AddIfaceRules(ifIndex int) error {
 		return fmt.Errorf(" qosm nft table not yet initialised")
 	}
 
+	nftOpts := NFTOpts{
+		CreateIfNotExists: true,
+		Logger:            c.Logger,
+	}
+
 	// get rules in output chain for given interface
-	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, true)
+	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, &nftOpts)
 	if err != nil {
 		return err
 	}
 
 	// get rules in forward chain for given interface
-	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, true)
+	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, &nftOpts)
 	if err != nil {
 		return err
 	}
@@ -162,8 +206,12 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 		return fmt.Errorf(" qosm nft table not yet initialised")
 	}
 
+	nftOpts := NFTOpts{
+		CreateIfNotExists: false,
+		Logger:            c.Logger,
+	}
 	// get rules in output chain for given interface
-	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, false)
+	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, &nftOpts)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil
@@ -174,7 +222,7 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 	c.conn.DelRule(outputRules.lowPrioRule)
 
 	// get rules in forward chain for given interface
-	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, false)
+	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, &nftOpts)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil
@@ -213,15 +261,21 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 // }
 
 func (c *NFTCtx) Refresh() error {
-	ipSets, err := lookupQoSMIPSets(c.conn, c.Table, false)
+	nftOpts := NFTOpts{
+		CreateIfNotExists: false,
+		Logger:            c.Logger,
+	}
+	ipSets, err := lookupQoSMIPSets(c.conn, c.Table, &nftOpts)
 	if err != nil {
 		return err
 	}
 	c.highPrioSet = ipSets.highPrioSet
 	c.lowPrioSet = ipSets.lowPrioSet
 
+	nftOpts.CreateIfNotExists = true
+
 	for ifIndex := range c.outputChain.Rules {
-		outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, ipSets, int(ifIndex), true)
+		outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, ipSets, int(ifIndex), &nftOpts)
 		if err != nil {
 			return err
 		}
@@ -229,7 +283,7 @@ func (c *NFTCtx) Refresh() error {
 	}
 
 	for ifIndex := range c.forwardChain.Rules {
-		forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, ipSets, int(ifIndex), true)
+		forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, ipSets, int(ifIndex), &nftOpts)
 		if err != nil {
 			return err
 		}
