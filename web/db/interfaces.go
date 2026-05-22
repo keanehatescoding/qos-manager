@@ -30,7 +30,11 @@ func GetInterfaces() (map[string]Interface, error) {
 			Enabled: exists,
 		}
 		if exists {
-			htb, err := tc.InitHTBQdisc(iface.Name)
+			htb, err := tc.NewHTBCtx()
+			if err != nil {
+				return nil, err
+			}
+			err = htb.InitHTBIface(iface.Name)
 			if err != nil {
 				return nil, err
 			}

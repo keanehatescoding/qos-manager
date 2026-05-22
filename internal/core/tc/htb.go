@@ -10,42 +10,50 @@ import (
 	"github.com/kakeetopius/qosm/internal/core/nft"
 )
 
-func InitHTBQdisc(iface string) (*HTBCtx, error) {
+func NewHTBCtx() (*HTBCtx, error) {
 	tcnl, err := tc.Open(&tc.Config{})
 	if err != nil {
 		return nil, err
 	}
 
-	if iface == "" {
-		return nil, fmt.Errorf("no interface given")
-	}
-	dev, err := net.InterfaceByName(iface)
-	if err != nil {
-		return nil, err
-	}
-
 	htbCtx := HTBCtx{}
-	var htbIface *HTBIface
-	_, err = findRootQdisc(tcnl, dev)
-	if err != nil {
-		if !errors.Is(err, ErrQdiscNotFound) {
-			return nil, err
-		}
-		htbIface, err = createQdisc(tcnl, dev)
-	} else {
-		htbIface, err = getQdisc(tcnl, dev)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	htbCtx.HTBIfaces = make(map[int]HTBIface)
-	htbCtx.HTBIfaces[dev.Index] = *htbIface
 
 	htbCtx.Conn = tcnl
 
 	return &htbCtx, nil
+}
+
+func (c *HTBCtx) InitHTBIface(ifaces ...string) error {
+	if len(ifaces) == 0 {
+		return fmt.Errorf("no interface given")
+	}
+
+	c.HTBIfaces = make(map[int]HTBIface)
+	for _, iface := range ifaces {
+		dev, err := net.InterfaceByName(iface)
+		if err != nil {
+			return err
+		}
+
+		var htbIface *HTBIface
+		_, err = findRootQdisc(c.Conn, dev)
+		if err != nil {
+			if !errors.Is(err, ErrQdiscNotFound) {
+				return err
+			}
+			htbIface, err = createQdisc(c.Conn, dev)
+		} else {
+			htbIface, err = getQdisc(c.Conn, dev)
+		}
+
+		if err != nil {
+			return err
+		}
+
+		c.HTBIfaces[dev.Index] = *htbIface
+	}
+
+	return nil
 }
 
 func (c *HTBCtx) InitHTBFilter() error {
@@ -81,6 +89,26 @@ func HasHTBQdisc(iface *net.Interface) (bool, error) {
 	}
 }
 
+func FindHTBEnabledIfaces() ([]string, error) {
+	devs, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	htbEnabledIfaces := make([]string, 0, len(devs))
+	for _, dev := range devs {
+		htbEnabled, err := HasHTBQdisc(&dev)
+		if err != nil {
+			return nil, err
+		}
+		if htbEnabled {
+			htbEnabledIfaces = append(htbEnabledIfaces, dev.Name)
+		}
+	}
+
+	return htbEnabledIfaces, nil
+}
+
 func (c *HTBCtx) AddRule(target []netip.Prefix, priority Priority) (err error) {
 	if c.NFTFilter == nil {
 		return fmt.Errorf(" HTB filter uninitialised")
@@ -113,7 +141,7 @@ func (c *HTBCtx) FlushQdisc(ifIndex int) error {
 	return deleteQdisc(c.Conn, qdisc.Root)
 }
 
-func FlushQdiscandFilters(iface string) error {
+func FlushQdisc(iface string) error {
 	tcnl, err := tc.Open(&tc.Config{})
 	if err != nil {
 		return err

@@ -157,7 +157,7 @@ func addNewQosMChain(conn *nftables.Conn, table *nftables.Table, chainName strin
 	}, nil
 }
 
-func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets qosmSets, oifIndex int) (qosmRules, error) {
+func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets qosmSets, oifIndex int, create bool) (qosmRules, error) {
 	fmt.Println("Looking up qosm rules for " + chain.Name)
 
 	rules, err := conn.GetRules(table, chain)
@@ -181,30 +181,38 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 	}
 
 	if highPrioRule == nil {
-		highPrioRule, err = addMarkingRule(conn, ruleParams{
-			table:       table,
-			chain:       chain,
-			ipSet:       ipSets.highPrioSet,
-			mark:        HIGHPRIOMARK,
-			ruleName:    highPrioRuleName,
-			oifaceIndex: oifIndex,
-		})
-		if err != nil {
-			return qosmRules{}, err
+		if create {
+			highPrioRule, err = addMarkingRule(conn, ruleParams{
+				table:       table,
+				chain:       chain,
+				ipSet:       ipSets.highPrioSet,
+				mark:        HIGHPRIOMARK,
+				ruleName:    highPrioRuleName,
+				oifaceIndex: oifIndex,
+			})
+			if err != nil {
+				return qosmRules{}, err
+			}
+		} else {
+			return qosmRules{}, ErrNotFound
 		}
 	}
 
 	if lowPrioRule == nil {
-		lowPrioRule, err = addMarkingRule(conn, ruleParams{
-			table:       table,
-			chain:       chain,
-			ipSet:       ipSets.lowPrioSet,
-			mark:        LOWPRIOMARK,
-			ruleName:    lowPrioRuleName,
-			oifaceIndex: oifIndex,
-		})
-		if err != nil {
-			return qosmRules{}, err
+		if create {
+			lowPrioRule, err = addMarkingRule(conn, ruleParams{
+				table:       table,
+				chain:       chain,
+				ipSet:       ipSets.lowPrioSet,
+				mark:        LOWPRIOMARK,
+				ruleName:    lowPrioRuleName,
+				oifaceIndex: oifIndex,
+			})
+			if err != nil {
+				return qosmRules{}, err
+			}
+		} else {
+			return qosmRules{}, ErrNotFound
 		}
 	}
 

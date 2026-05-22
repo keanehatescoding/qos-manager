@@ -3,18 +3,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/core/tc"
 	"github.com/kakeetopius/qosm/internal/core/util"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
-
-// TODO: ifaces can be given more than one.
-// qosm add iface -> add interface to system.
-// qosm add target to priority -> add target to given priority.
-// all interfaces use the same marks and ipsets
-
-var iface string
 
 func RuleCmd() *cobra.Command {
 	ruleCmd := cobra.Command{
@@ -22,8 +16,6 @@ func RuleCmd() *cobra.Command {
 		Short:   "Manage the traffic control rules.",
 		Aliases: []string{"r"},
 	}
-
-	ruleCmd.PersistentFlags().StringVarP(&iface, "iface", "i", "", "The network interface to use.")
 
 	ruleCmd.AddCommand(
 		RuleAddCmd(),
@@ -47,7 +39,6 @@ func RuleAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			var tcPriority tc.Priority
 
 			switch priority {
@@ -59,7 +50,7 @@ func RuleAddCmd() *cobra.Command {
 				return fmt.Errorf("unknown priority %v", priority)
 			}
 
-			htbCtx, err := tc.InitHTBQdisc(iface)
+			htbCtx, err := tc.NewHTBCtx()
 			if err != nil {
 				return err
 			}
@@ -69,6 +60,7 @@ func RuleAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			err = htbCtx.AddRule(targets, tcPriority)
 			if err != nil {
 				return err
@@ -96,10 +88,11 @@ func RuleDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			htbCtx, err := tc.InitHTBQdisc(iface)
+			htbCtx, err := tc.NewHTBCtx()
 			if err != nil {
 				return err
 			}
+
 			err = htbCtx.InitHTBFilter()
 			if err != nil {
 				return err
@@ -128,10 +121,7 @@ func RuleFlushCmd() *cobra.Command {
 		Short:   "Flush all qosm rules.",
 		Aliases: []string{"f"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if iface == "" {
-				return fmt.Errorf("please provide an interface")
-			}
-			return tc.FlushQdiscandFilters(iface)
+			return nft.DeleteTable()
 		},
 	}
 
@@ -144,14 +134,11 @@ func RuleListCmd() *cobra.Command {
 		Short:   "List qosm priority rules.",
 		Aliases: []string{"l"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if iface == "" {
-				return fmt.Errorf("please provide an interface")
-			}
-
-			htbCtx, err := tc.InitHTBQdisc(iface)
+			htbCtx, err := tc.NewHTBCtx()
 			if err != nil {
 				return err
 			}
+
 			err = htbCtx.InitHTBFilter()
 			if err != nil {
 				return err

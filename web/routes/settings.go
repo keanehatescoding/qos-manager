@@ -113,7 +113,11 @@ func enableQoS(app *ServerCtx, ifaceName string) error {
 	if iface.Enabled {
 		return nil
 	}
-	htbCtx, err := tc.InitHTBQdisc(ifaceName)
+	htbCtx, err := tc.NewHTBCtx()
+	if err != nil {
+		return err
+	}
+	err = htbCtx.InitHTBIface(ifaceName)
 	if err != nil {
 		return err
 	}

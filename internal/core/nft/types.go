@@ -1,11 +1,14 @@
 package nft
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 
 	"github.com/google/nftables"
 )
+
+var ErrNotFound = errors.New("nft object not found")
 
 type IfaceIndex int
 
@@ -114,13 +117,13 @@ func (c *NFTCtx) AddIfaceRules(ifIndex int) error {
 	}
 
 	// get rules in output chain for given interface
-	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex)
+	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, true)
 	if err != nil {
 		return err
 	}
 
 	// get rules in forward chain for given interface
-	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex)
+	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, true)
 	if err != nil {
 		return err
 	}
@@ -130,6 +133,41 @@ func (c *NFTCtx) AddIfaceRules(ifIndex int) error {
 
 	c.forwardChain.Rules = make(map[IfaceIndex]qosmRules)
 	c.forwardChain.Rules[IfaceIndex(ifIndex)] = forwardRules
+
+	return nil
+}
+
+func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
+	if c.Table == nil {
+		return fmt.Errorf(" qosm nft table not yet initialised")
+	}
+
+	// get rules in output chain for given interface
+	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, false)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	c.conn.DelRule(outputRules.highPrioRule)
+	c.conn.DelRule(outputRules.lowPrioRule)
+
+	// get rules in forward chain for given interface
+	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, false)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	c.conn.DelRule(forwardRules.highPrioRule)
+	c.conn.DelRule(forwardRules.lowPrioRule)
+
+	err = c.conn.Flush()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -163,7 +201,7 @@ func (c *NFTCtx) Refresh() error {
 	c.lowPrioSet = ipSets.lowPrioSet
 
 	for ifIndex := range c.outputChain.Rules {
-		outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, ipSets, int(ifIndex))
+		outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, ipSets, int(ifIndex), true)
 		if err != nil {
 			return err
 		}
@@ -171,7 +209,7 @@ func (c *NFTCtx) Refresh() error {
 	}
 
 	for ifIndex := range c.forwardChain.Rules {
-		forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, ipSets, int(ifIndex))
+		forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, ipSets, int(ifIndex), true)
 		if err != nil {
 			return err
 		}
