@@ -4,8 +4,7 @@
 
 		<!-- FORM -->
 		<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-
-			<form hx-post="/rules/create" hx-target="#rule-result" hx-swap="innerHTML" class="space-y-5">
+			<form hx-post="/rules/create" hx-target="#rules-table" hx-swap="beforeend" class="space-y-5">
 
 				<!-- Rule Type -->
 				<div>
@@ -86,6 +85,62 @@
 		</section>
 
 	</div>
+
+	<!-- CURRENT RULES -->
+	<section class="mt-10 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+
+		<div class="flex items-center justify-between mb-4">
+			<h3 class="text-lg font-semibold">Current Rules</h3>
+		</div>
+
+		<div class="overflow-x-auto">
+			<table class="w-full text-sm text-left">
+
+				<thead class="text-zinc-400 border-b border-zinc-800">
+					<tr>
+						<th class="py-2 px-3">Type</th>
+						<th class="py-2 px-3">Target</th>
+						<th class="py-2 px-3">Priority</th>
+						<th class="py-2 px-3 text-right">Actions</th>
+					</tr>
+				</thead>
+
+				<tbody id="rules-table" class="divide-y divide-zinc-800">
+
+					{{ range .Rules }}
+					<tr class="hover:bg-zinc-800/50 transition">
+						<td class="py-3 px-3 text-zinc-300">{{ .Type }}</td>
+						<td class="py-3 px-3">{{ .Target }}</td>
+						<td class="py-3 px-3">
+							{{ if eq .Priority "high" }}
+							<span class="px-2 py-1 rounded bg-green-500/10 text-green-400 text-xs">
+								high
+							</span>
+							{{ else if eq .Priority "low" }}
+							<span class="px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 text-xs">
+								low
+							</span>
+							{{ end }}
+						</td>
+						<td class="py-3 px-3 text-right">
+							<button hx-delete="/rules/{{ .Type }}/{{ .ID }}" hx-target="closest tr" hx-swap="outerHTML"
+								class="text-red-400 hover:text-red-300 text-xs">
+								Remove
+							</button>
+						</td>
+					</tr>
+					{{ end }}
+				</tbody>
+
+			</table>
+		</div>
+
+		<!-- Empty state (optional server toggle) -->
+		<div class="mt-4 text-center text-zinc-500 text-sm hidden" id="empty-rules">
+			No rules defined yet.
+		</div>
+
+	</section>
 
 </main>
 {{ end }}

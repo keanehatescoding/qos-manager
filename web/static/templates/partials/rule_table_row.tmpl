@@ -1,0 +1,23 @@
+{{ define "rule_table_row.tmpl" }}
+<tr class="hover:bg-zinc-800/50 transition">
+	<td class="py-3 px-3 text-zinc-300">{{ .Rule.Type }}</td>
+	<td class="py-3 px-3">{{ .Rule.Target }}</td>
+	<td class="py-3 px-3">
+		{{ if eq .Rule.Priority "high" }}
+		<span class="px-2 py-1 rounded bg-green-500/10 text-green-400 text-xs">
+			high
+		</span>
+		{{ else if eq .Rule.Priority "low" }}
+		<span class="px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 text-xs">
+			low
+		</span>
+		{{ end }}
+	</td>
+	<td class="py-3 px-3 text-right">
+		<button hx-delete="/rules/{{ .Rule.Type }}/{{ .Rule.ID }}" hx-target="closest tr" hx-swap="outerHTML"
+			class="text-red-400 hover:text-red-300 text-xs">
+			Remove
+		</button>
+	</td>
+</tr>
+{{ end }}

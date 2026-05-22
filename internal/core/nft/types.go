@@ -93,7 +93,7 @@ type ErrSetNotFound struct {
 }
 
 func (e ErrSetNotFound) Error() string {
-	return "qosm set " + e.Name + " not found"
+	return "nft set " + e.Name + " not found"
 }
 
 type ErrRuleNotFound struct {
@@ -101,7 +101,7 @@ type ErrRuleNotFound struct {
 }
 
 func (e ErrRuleNotFound) Error() string {
-	return "qosm chain " + e.Name + " not found"
+	return "nft chain " + e.Name + " not found"
 }
 
 func Debug(logger *slog.Logger, msg string, args ...any) {
@@ -211,9 +211,10 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 		Logger:            c.Logger,
 	}
 	// get rules in output chain for given interface
+	var errRuleNotFound ErrRuleNotFound
 	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, &nftOpts)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.As(err, &errRuleNotFound) {
 			return nil
 		}
 		return err
@@ -224,7 +225,7 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 	// get rules in forward chain for given interface
 	forwardRules, err := lookupQoSMRules(c.conn, c.Table, c.forwardChain.Chain, c.qosmSets, ifIndex, &nftOpts)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.As(err, &errRuleNotFound) {
 			return nil
 		}
 		return err

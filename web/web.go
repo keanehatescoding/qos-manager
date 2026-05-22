@@ -27,9 +27,10 @@ type ServerOptions struct {
 	DBPath          string
 	SessionsEncKey  string
 	SessionsHashKey string
+	Debug           bool
 }
 
-func Run() error {
+func Run(opts ServerOptions) error {
 	router := gin.Default()
 
 	renderer, err := createRenderer()
@@ -50,27 +51,33 @@ func Run() error {
 		return err
 	}
 
-	htbCtx, err := setUpHTBContext()
+	ifaces, err := initNetInterfaces()
 	if err != nil {
 		return err
 	}
+
 	settings, err := db.LoadSettings(dbConn)
 	if err != nil {
 		return err
 	}
 
-	ifaces, err := initNetInterface()
-	if err != nil {
-		return err
+	var logOptions *slog.HandlerOptions
+	if opts.Debug {
+		logOptions = &slog.HandlerOptions{Level: slog.LevelDebug}
 	}
 
 	app := routes.ServerCtx{
-		Logger:   slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+		Logger:   slog.New(slog.NewJSONHandler(os.Stdout, logOptions)),
 		DB:       dbConn,
 		Ifaces:   ifaces,
-		HTBCtx:   htbCtx,
 		Settings: settings,
 	}
+
+	htbCtx, err := setUpHTBContext(app.EnabledIfaces(), app.Logger)
+	if err != nil {
+		return err
+	}
+	app.HTBCtx = htbCtx
 
 	addRoutes(router, &app)
 
@@ -155,24 +162,33 @@ func createRenderer() (multitemplate.Renderer, error) {
 	r.AddFromFS("fail", tmplSubFS, "partials/fail.tmpl")
 	r.AddFromFS("toast_success", tmplSubFS, "partials/toast_success.tmpl")
 	r.AddFromFS("toast_error", tmplSubFS, "partials/toast_error.tmpl")
+	r.AddFromFS("rule_table_row", tmplSubFS, "partials/rule_table_row.tmpl")
 	return r, nil
 }
 
-func setUpHTBContext() (*tc.HTBCtx, error) {
+func setUpHTBContext(enabledIfaces []routes.Interface, logger *slog.Logger) (*tc.HTBCtx, error) {
 	htbCtx, err := tc.NewHTBCtx()
 	if err != nil {
 		return nil, err
 	}
+	htbCtx.WithLogger(logger)
 
 	err = htbCtx.InitHTBFilter(true)
 	if err != nil {
 		return nil, err
 	}
 
+	for _, iface := range enabledIfaces {
+		err := htbCtx.InitHTBIface(iface.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return htbCtx, nil
 }
 
-func initNetInterface() (map[string]routes.Interface, error) {
+func initNetInterfaces() (map[string]routes.Interface, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil, err

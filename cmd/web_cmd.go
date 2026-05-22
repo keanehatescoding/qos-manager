@@ -21,7 +21,9 @@ func runWeb() *cobra.Command {
 		Use:   "run",
 		Short: "Run the web server.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return web.Run()
+			return web.Run(web.ServerOptions{
+				Debug: debug,
+			})
 		},
 	}
 

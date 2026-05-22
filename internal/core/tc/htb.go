@@ -106,6 +106,7 @@ func (c *HTBCtx) FlushQdisc(ifIndex int) error {
 	c.Info("tc: delete_qdisc", "ifIndex", ifIndex)
 	qdisc := c.HTBIfaces[ifIndex]
 	if qdisc.Root == nil {
+		c.Info("tc: delete_qdisc", "ifIndex", ifIndex, "msg", "nothing to delete")
 		return nil
 	}
 	return c.deleteQdisc(qdisc.Root)

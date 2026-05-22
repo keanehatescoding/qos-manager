@@ -64,12 +64,18 @@ func (app *ServerCtx) DashboardPage(c *gin.Context) {
 
 func (app *ServerCtx) RulesPage(c *gin.Context) {
 	session := sessions.Default(c)
+	rules, err := getAllRules(app)
+	if err != nil {
+		c.Error(err)
+		return
+	}
 
 	c.HTML(http.StatusOK, "rules", gin.H{
 		"Heading":     "Rules",
 		"Description": "Define how network traffic should be prioritized or limited",
 		"User":        session.Get("username"),
 		"Role":        session.Get("role"),
+		"Rules":       rules,
 	})
 }
 
