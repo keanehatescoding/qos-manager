@@ -131,13 +131,7 @@ func addFWFilter(tcnl *tc.Tc, iface *net.Interface, filter *FWFilter) (*tc.Objec
 	return &filterObj, nil
 }
 
-// createQdisc initializes a complete HTB  queue discipline
-// hierarchy on the specified network interface. It creates the root qdisc, parent class,
-// and three traffic classes (high priority, low priority, and default). It also adds
-// firewall filters to route marked packets to the appropriate classes.
-// Returns a populated HTBCtx struct containing all created objects and the netlink connection,
-// or an error if any step of the initialization fails.
-func createQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBCtx, error) {
+func createQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBIface, error) {
 	err := tcnl.SetOption(netlink.ExtendedAcknowledge, true) // for better error messages
 	if err != nil {
 		return nil, err
@@ -185,8 +179,7 @@ func createQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBCtx, error) {
 		return nil, err
 	}
 
-	return &HTBCtx{
-		Conn:            tcnl,
+	return &HTBIface{
 		Root:            rootHtbQdisc,
 		ParentClass:     htbParentClass,
 		HighClass:       highClass,
@@ -197,14 +190,7 @@ func createQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBCtx, error) {
 	}, nil
 }
 
-// getQdisc retrieves the complete qosm HTB queue discipline
-// configuration for the specified network interface. It queries all qdiscs, classes,
-// and filters on the system and assembles them into an HTBCtx struct.
-// The function validates that all required components (root qdisc, parent class,
-// high/low/default classes, and high/low priority filters) are present.
-// Returns a populated HTBCtx struct or an error if any required component is missing
-// or if any query operation fails.
-func getQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBCtx, error) {
+func getQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBIface, error) {
 	qdiscs, qerr := tcnl.Qdisc().Get()
 	if qerr != nil {
 		return nil, qerr
@@ -214,7 +200,7 @@ func getQdisc(tcnl *tc.Tc, dev *net.Interface) (*HTBCtx, error) {
 		return nil, ErrQdiscNotFound
 	}
 
-	htbCtx := HTBCtx{}
+	htbCtx := HTBIface{}
 
 	htbCtx.Root = findQdiscByHandle(qdiscs, HTBQDISCHANDLE, dev)
 	if htbCtx.Root == nil {
@@ -296,7 +282,7 @@ func mapClassesByHandle(classes []tc.Object, iface *net.Interface) map[uint32]*t
 
 // validateClasses checks that all required HTB classes are present.
 // Returns an error if any required class is missing.
-func validateClasses(htbCtx *HTBCtx) error {
+func validateClasses(htbCtx *HTBIface) error {
 	switch {
 	case htbCtx.ParentClass == nil:
 		return ErrClassNotFound{
@@ -343,7 +329,7 @@ func mapFiltersByHandle(filters []tc.Object, iface *net.Interface) map[uint32]*t
 
 // validateFilters checks that all required firewall filters are present.
 // Returns an error if any required filter is missing.
-func validateFilters(htbCtx *HTBCtx) error {
+func validateFilters(htbCtx *HTBIface) error {
 	switch {
 	case htbCtx.LowClassFilter == nil:
 		return ErrFilterNotFound{

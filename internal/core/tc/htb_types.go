@@ -2,7 +2,6 @@ package tc
 
 import (
 	"errors"
-	"net"
 
 	"github.com/florianl/go-tc"
 	"github.com/florianl/go-tc/core"
@@ -35,9 +34,12 @@ var (
 )
 
 type HTBCtx struct {
-	Conn  *tc.Tc
-	Iface *net.Interface
+	Conn      *tc.Tc
+	HTBIfaces map[int]HTBIface
+	NFTFilter *nft.NFTCtx
+}
 
+type HTBIface struct {
 	Root         *tc.Object
 	ParentClass  *tc.Object
 	HighClass    *tc.Object
@@ -46,8 +48,6 @@ type HTBCtx struct {
 
 	HighClassFilter *tc.Object
 	LowClassFilter  *tc.Object
-
-	Filter nft.NFTCtx
 }
 
 type HTBQdisc struct {

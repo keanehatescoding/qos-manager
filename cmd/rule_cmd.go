@@ -3,12 +3,16 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/core/tc"
 	"github.com/kakeetopius/qosm/internal/core/util"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
+
+// TODO: ifaces can be given more than one.
+// qosm add iface -> add interface to system.
+// qosm add target to priority -> add target to given priority.
+// all interfaces use the same marks and ipsets
 
 var iface string
 
@@ -55,12 +59,16 @@ func RuleAddCmd() *cobra.Command {
 				return fmt.Errorf("unknown priority %v", priority)
 			}
 
-			htbCtx, err := tc.NewHTBCtx(iface)
+			htbCtx, err := tc.InitHTBQdisc(iface)
 			if err != nil {
 				return err
 			}
 			defer htbCtx.Close()
 
+			err = htbCtx.InitHTBFilter()
+			if err != nil {
+				return err
+			}
 			err = htbCtx.AddRule(targets, tcPriority)
 			if err != nil {
 				return err
@@ -88,12 +96,20 @@ func RuleDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			htbCtx, err := tc.InitHTBQdisc(iface)
+			if err != nil {
+				return err
+			}
+			err = htbCtx.InitHTBFilter()
+			if err != nil {
+				return err
+			}
 
 			switch priority {
 			case "high":
-				return nft.DeleteTargetFromHighPriority(targets)
+				return htbCtx.NFTFilter.DeleteTargetFromHighPriority(targets)
 			case "low":
-				return nft.DeleteTargetFromLowPriority(targets)
+				return htbCtx.NFTFilter.DeleteTargetFromLowPriority(targets)
 			default:
 				return fmt.Errorf("unknown priority %v", priority)
 			}
@@ -115,7 +131,7 @@ func RuleFlushCmd() *cobra.Command {
 			if iface == "" {
 				return fmt.Errorf("please provide an interface")
 			}
-			return tc.FlushQdisc(iface)
+			return tc.FlushQdiscandFilters(iface)
 		},
 	}
 
@@ -132,16 +148,20 @@ func RuleListCmd() *cobra.Command {
 				return fmt.Errorf("please provide an interface")
 			}
 
-			nftablesCtx, err := nft.NewNFTCtx()
+			htbCtx, err := tc.InitHTBQdisc(iface)
+			if err != nil {
+				return err
+			}
+			err = htbCtx.InitHTBFilter()
 			if err != nil {
 				return err
 			}
 
-			highPrioIPs, err := nftablesCtx.GetHighPrioIPs()
+			highPrioIPs, err := htbCtx.NFTFilter.GetHighPrioIPs()
 			if err != nil {
 				return err
 			}
-			lowPrioIPs, err := nftablesCtx.GetLowPrioIPs()
+			lowPrioIPs, err := htbCtx.NFTFilter.GetLowPrioIPs()
 			if err != nil {
 				return err
 			}

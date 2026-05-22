@@ -11,64 +11,45 @@ import (
 	"github.com/google/nftables/expr"
 )
 
-// AddTargetsToHighPriority ip addresses to the high-priority IP set.
-func AddTargetsToHighPriority(targets []netip.Prefix) error {
-	nftablesCtx, err := NewNFTCtx()
+func NewNFTCtx() (NFTCtx, error) {
+	conn, err := nftables.New()
 	if err != nil {
-		return err
+		return NFTCtx{}, err
 	}
 
-	return addIPsToQoSMIPSet(nftablesCtx.conn, nftablesCtx.highPrioSet, targets)
-}
-
-// AddTargetsToLowPriority adds ip addresses to the low-priority IP set.
-func AddTargetsToLowPriority(targets []netip.Prefix) error {
-	nftablesCtx, err := NewNFTCtx()
+	table, err := lookupQoSMTable(conn)
 	if err != nil {
-		return err
+		return NFTCtx{}, err
 	}
 
-	return addIPsToQoSMIPSet(nftablesCtx.conn, nftablesCtx.lowPrioSet, targets)
-}
-
-// DeleteTargetFromHighPriority removes the given ip addresses from the high-priority IP set.
-func DeleteTargetFromHighPriority(targets []netip.Prefix) error {
-	nftablesCtx, err := NewNFTCtx()
+	outputChain, err := lookupQoSMChain(conn, table, OUTPUTCHAINNAME, nftables.ChainHookOutput)
 	if err != nil {
-		return err
+		return NFTCtx{}, err
 	}
 
-	return deleteIPsFromQoSIPSet(nftablesCtx.conn, nftablesCtx.highPrioSet, targets)
-}
-
-// DeleteTargetFromLowPriority removes the given ip addresses from the low-priority IP set.
-func DeleteTargetFromLowPriority(targets []netip.Prefix) error {
-	nftablesCtx, err := NewNFTCtx()
+	forwardChain, err := lookupQoSMChain(conn, table, FORWARDCHAINNAME, nftables.ChainHookForward)
 	if err != nil {
-		return err
+		return NFTCtx{}, err
 	}
 
-	return deleteIPsFromQoSIPSet(nftablesCtx.conn, nftablesCtx.lowPrioSet, targets)
-}
-
-// GetHighPrioIPs returns all IP addresses in the high-priority set.
-func GetHighPrioIPs() ([]netip.Addr, error) {
-	nftCtx, err := NewNFTCtx()
+	ipSets, err := lookupQoSMIPSets(conn, table)
 	if err != nil {
-		return nil, err
+		return NFTCtx{}, err
 	}
 
-	return getIPSetElements(nftCtx.conn, nftCtx.highPrioSet)
-}
-
-// GetLowPrioIPs returns all IP addresses in the low-priority set.
-func GetLowPrioIPs() ([]netip.Addr, error) {
-	nftCtx, err := NewNFTCtx()
-	if err != nil {
-		return nil, err
+	chains := qosmChains{
+		outputChain:  outputChain,
+		forwardChain: forwardChain,
 	}
 
-	return getIPSetElements(nftCtx.conn, nftCtx.lowPrioSet)
+	return NFTCtx{
+		conn: conn,
+		qosmTable: qosmTable{
+			Table:      table,
+			qosmChains: chains,
+			qosmSets:   ipSets,
+		},
+	}, nil
 }
 
 // DeleteTable removes the qosm nftables table from the system.
@@ -96,65 +77,6 @@ func DeleteTable() error {
 	return conn.Flush()
 }
 
-// NewNFTCtx creates and initializes a new Ctx (context) for nftables operations.
-// It establishes a connection to nftables and retrieves the qosm table, chains,
-// IP sets, and rules. Returns a populated Ctx or an error if any step fails.
-func NewNFTCtx() (NFTCtx, error) {
-	conn, err := nftables.New()
-	if err != nil {
-		return NFTCtx{}, err
-	}
-
-	table, err := lookupQoSMTable(conn)
-	if err != nil {
-		return NFTCtx{}, err
-	}
-
-	outputChain, err := lookupQoSMChain(conn, table, OUTPUTCHAINNAME, nftables.ChainHookOutput)
-	if err != nil {
-		return NFTCtx{}, err
-	}
-
-	forwardChain, err := lookupQoSMChain(conn, table, FORWARDCHAINNAME, nftables.ChainHookForward)
-	if err != nil {
-		return NFTCtx{}, err
-	}
-
-	ipSets, err := lookupQoSMIPSets(conn, table)
-	if err != nil {
-		return NFTCtx{}, err
-	}
-
-	outputRules, err := lookupQoSMRules(conn, table, outputChain.Chain, ipSets)
-	if err != nil {
-		return NFTCtx{}, err
-	}
-	outputChain.qosmRules = outputRules
-
-	filterRules, err := lookupQoSMRules(conn, table, forwardChain.Chain, ipSets)
-	if err != nil {
-		return NFTCtx{}, err
-	}
-	forwardChain.qosmRules = filterRules
-
-	chains := qosmChains{
-		outputChain:  outputChain,
-		forwardChain: forwardChain,
-	}
-
-	return NFTCtx{
-		conn: conn,
-		qosmTable: qosmTable{
-			Table:      table,
-			qosmChains: chains,
-			qosmSets:   ipSets,
-		},
-	}, nil
-}
-
-// lookupQoSMTable searches for the qosm nftables table on the system.
-// If found, it returns the table. If not found, it creates a new qosm table
-// by calling addNewQoSMTable. Returns an error if listing tables fails.
 func lookupQoSMTable(conn *nftables.Conn) (*nftables.Table, error) {
 	fmt.Println("Looking up qosm table on system")
 
@@ -235,10 +157,7 @@ func addNewQosMChain(conn *nftables.Conn, table *nftables.Table, chainName strin
 	}, nil
 }
 
-// lookupQoSMRules searches for qosm marking rules within the specified chain.
-// If either rule is not found, it creates a new marking rule by calling addMarkingRule.
-// Returns a QoSMRules struct containing both rules, or an error if any operation fails.
-func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets qosmSets) (qosmRules, error) {
+func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets qosmSets, oifIndex int) (qosmRules, error) {
 	fmt.Println("Looking up qosm rules for " + chain.Name)
 
 	rules, err := conn.GetRules(table, chain)
@@ -246,27 +165,44 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 		return qosmRules{}, err
 	}
 
+	highPrioRuleName := fmt.Sprintf("%v_%v", oifIndex, HIGHPRIORULENAME)
+	lowPrioRuleName := fmt.Sprintf("%v_%v", oifIndex, LOWPRIORULENAME)
+
 	var highPrioRule *nftables.Rule
 	var lowPrioRule *nftables.Rule
 
 	for _, rule := range rules {
-		if string(rule.UserData) == HIGHPRIORULENAME {
+		if string(rule.UserData) == highPrioRuleName {
 			highPrioRule = rule
 		}
-		if string(rule.UserData) == LOWPRIORULENAME {
+		if string(rule.UserData) == lowPrioRuleName {
 			lowPrioRule = rule
 		}
 	}
 
 	if highPrioRule == nil {
-		highPrioRule, err = addMarkingRule(conn, table, chain, ipSets.highPrioSet, HIGHPRIOMARK, HIGHPRIORULENAME)
+		highPrioRule, err = addMarkingRule(conn, ruleParams{
+			table:       table,
+			chain:       chain,
+			ipSet:       ipSets.highPrioSet,
+			mark:        HIGHPRIOMARK,
+			ruleName:    highPrioRuleName,
+			oifaceIndex: oifIndex,
+		})
 		if err != nil {
 			return qosmRules{}, err
 		}
 	}
 
 	if lowPrioRule == nil {
-		lowPrioRule, err = addMarkingRule(conn, table, chain, ipSets.lowPrioSet, LOWPRIOMARK, LOWPRIORULENAME)
+		lowPrioRule, err = addMarkingRule(conn, ruleParams{
+			table:       table,
+			chain:       chain,
+			ipSet:       ipSets.lowPrioSet,
+			mark:        LOWPRIOMARK,
+			ruleName:    lowPrioRuleName,
+			oifaceIndex: oifIndex,
+		})
 		if err != nil {
 			return qosmRules{}, err
 		}
@@ -278,20 +214,32 @@ func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables
 	}, nil
 }
 
-// addMarkingRule creates and adds a packet marking rule to the specified chain.
-// The rule matches packets whose destination IP is in the provided IP set,
-// A counter is added to track matched packets.
-// Returns the created rule or an error if flushing fails.
-func addMarkingRule(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSet *nftables.Set, mark int, ruleName string) (*nftables.Rule, error) {
-	fmt.Println("Adding ", ruleName, " QoSM rule")
+func addMarkingRule(conn *nftables.Conn, params ruleParams) (*nftables.Rule, error) {
+	fmt.Println("Adding ", params.ruleName, " QoSM rule")
 	byteMark := make([]byte, 4)
-	binary.LittleEndian.PutUint32(byteMark, uint32(mark))
+	binary.NativeEndian.PutUint32(byteMark, uint32(params.mark))
+
+	ifIndex := make([]byte, 4)
+	binary.NativeEndian.PutUint32(ifIndex, uint32(params.oifaceIndex))
 
 	rule := conn.AddRule(&nftables.Rule{
-		Table:    table,
-		Chain:    chain,
-		UserData: []byte(ruleName),
+		Table:    params.table,
+		Chain:    params.chain,
+		UserData: []byte(params.ruleName),
 		Exprs: []expr.Any{
+			// Load outgoing interface index into reg 1
+			&expr.Meta{
+				Register: 1,
+				Key:      expr.MetaKeyOIF,
+			},
+
+			// compare with what is in reg 1 ie the given interface's index
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     ifIndex,
+			},
+
 			// Load the dst IP in packet into register 1.
 			&expr.Payload{
 				DestRegister: 1,
@@ -303,8 +251,8 @@ func addMarkingRule(conn *nftables.Conn, table *nftables.Table, chain *nftables.
 			// Check if IP put in register 1 above is contained in the IP Set
 			&expr.Lookup{
 				SourceRegister: 1,
-				SetName:        ipSet.Name,
-				SetID:          ipSet.ID,
+				SetName:        params.ipSet.Name,
+				SetID:          params.ipSet.ID,
 			},
 
 			// Load the mark into register 1
@@ -333,9 +281,6 @@ func addMarkingRule(conn *nftables.Conn, table *nftables.Table, chain *nftables.
 	return rule, nil
 }
 
-// lookupQoSMIPSets searches for high and low priority IP sets within the specified table.
-// If either IP set is not found, it creates a new IP set by calling addQoSMIPSet.
-// Returns a QoSMSets struct containing both IP sets, or an error if any operation fails.
 func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table) (qosmSets, error) {
 	fmt.Println("Looking up IP Sets")
 
@@ -440,6 +385,19 @@ func getIPSetElements(conn *nftables.Conn, set *nftables.Set) ([]netip.Addr, err
 	}
 
 	return ips, nil
+}
+
+func getRuleStats(rule *nftables.Rule) PrioritySetStats {
+	exprs := rule.Exprs
+
+	for _, e := range exprs {
+		switch counter := e.(type) {
+		case *expr.Counter:
+			return PrioritySetStats{counter.Packets, counter.Bytes}
+		}
+	}
+
+	return PrioritySetStats{}
 }
 
 // deleteIPsFromQoSIPSet removes a collection of IP networks from the specified nftables IP set.

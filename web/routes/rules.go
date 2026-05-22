@@ -3,7 +3,6 @@ package routes
 import (
 	"fmt"
 	"net"
-	"net/netip"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kakeetopius/qosm/internal/core/tc"
@@ -31,6 +30,8 @@ func (app *ServerCtx) PostRules(c *gin.Context) {
 		err = addIPRule(app, form.Target, form.IfaceName, form.Priority)
 	case "domain":
 		err = addDomainRule(app, form.Target, form.IfaceName, form.Priority)
+	default:
+		err = fmt.Errorf("unknown rule type: %s", form.RuleType)
 	}
 
 	if err != nil {
@@ -58,7 +59,7 @@ func addDomainRule(app *ServerCtx, domain string, iface string, priority string)
 		app.Logger.Error("resolve_error", "domain", domain, "error", err.Error())
 		return err
 	}
-	addrs := NetIPtoNetIPPRefix(ips)
+	addrs := util.NetIPtoNetIPPRefix(ips)
 
 	app.Logger.Info("add_rule", "target", domain, "network_interface", iface, "priority", priority)
 	err = app.Ifaces[iface].HTBCtx.AddRule(addrs, prio)
@@ -94,29 +95,4 @@ func addIPRule(app *ServerCtx, ip string, iface string, priority string) error {
 	}
 
 	return nil
-}
-
-func NetIPtoNetIPPRefix(ips []net.IP) []netip.Prefix {
-	addrs := make([]netip.Prefix, 0, len(ips))
-
-	for _, ip := range ips {
-		if ip == nil {
-			continue
-		}
-
-		addr, ok := netip.AddrFromSlice(ip)
-		if !ok {
-			continue
-		}
-
-		var prefix netip.Prefix
-
-		if !addr.Is4() {
-			continue
-		}
-		prefix = netip.PrefixFrom(addr, 32)
-		addrs = append(addrs, prefix)
-	}
-
-	return addrs
 }

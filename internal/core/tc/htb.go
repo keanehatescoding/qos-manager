@@ -10,9 +10,7 @@ import (
 	"github.com/kakeetopius/qosm/internal/core/nft"
 )
 
-// NewHTBCtx creates a new HTB (Hierarchical Token Bucket) qdisc context for the given interface.
-// It initializes the traffic control qdisc and filter, creating a new one if it doesn't exist.
-func NewHTBCtx(iface string) (*HTBCtx, error) {
+func InitHTBQdisc(iface string) (*HTBCtx, error) {
 	tcnl, err := tc.Open(&tc.Config{})
 	if err != nil {
 		return nil, err
@@ -26,29 +24,44 @@ func NewHTBCtx(iface string) (*HTBCtx, error) {
 		return nil, err
 	}
 
-	var htbCtx *HTBCtx
+	htbCtx := HTBCtx{}
+	var htbIface *HTBIface
 	_, err = findRootQdisc(tcnl, dev)
 	if err != nil {
 		if !errors.Is(err, ErrQdiscNotFound) {
 			return nil, err
 		}
-		htbCtx, err = createQdisc(tcnl, dev)
+		htbIface, err = createQdisc(tcnl, dev)
 	} else {
-		htbCtx, err = getQdisc(tcnl, dev)
+		htbIface, err = getQdisc(tcnl, dev)
 	}
 
 	if err != nil {
 		return nil, err
 	}
+
+	htbCtx.HTBIfaces = make(map[int]HTBIface)
+	htbCtx.HTBIfaces[dev.Index] = *htbIface
 
 	htbCtx.Conn = tcnl
 
-	htbCtx.Filter, err = nft.NewNFTCtx()
-	if err != nil {
-		return nil, err
-	}
+	return &htbCtx, nil
+}
 
-	return htbCtx, nil
+func (c *HTBCtx) InitHTBFilter() error {
+	nftCtx, err := nft.NewNFTCtx()
+	if err != nil {
+		return err
+	}
+	c.NFTFilter = &nftCtx
+
+	for ifIndex := range c.HTBIfaces {
+		err := c.NFTFilter.AddIfaceRules(ifIndex)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func HasHTBQdisc(iface *net.Interface) (bool, error) {
@@ -68,13 +81,16 @@ func HasHTBQdisc(iface *net.Interface) (bool, error) {
 	}
 }
 
-// AddRule adds a traffic rule for the given network prefixes with the specified priority level.
 func (c *HTBCtx) AddRule(target []netip.Prefix, priority Priority) (err error) {
+	if c.NFTFilter == nil {
+		return fmt.Errorf(" HTB filter uninitialised")
+	}
+
 	switch priority {
 	case PRIORITYHIGH:
-		err = c.Filter.AddTargetsToHighPriority(target)
+		err = c.NFTFilter.AddTargetsToHighPriority(target)
 	case PRIORITYLOW:
-		err = c.Filter.AddTargetsToLowPriority(target)
+		err = c.NFTFilter.AddTargetsToLowPriority(target)
 	default:
 		return fmt.Errorf("unknown priority %v", priority)
 	}
@@ -85,26 +101,19 @@ func (c *HTBCtx) AddRule(target []netip.Prefix, priority Priority) (err error) {
 	return nil
 }
 
-// Close closes the underlying traffic control connection.
 func (c *HTBCtx) Close() error {
 	return c.Conn.Close()
 }
 
-// FlushQdiscAndFilters removes the qdisc and its associated filter rules.
-func (c *HTBCtx) FlushQdiscAndFilters() error {
-	err := deleteQdisc(c.Conn, c.Root)
-	if err != nil {
-		return err
+func (c *HTBCtx) FlushQdisc(ifIndex int) error {
+	qdisc := c.HTBIfaces[ifIndex]
+	if qdisc.Root == nil {
+		return nil
 	}
-	return c.Filter.DeleteTable()
+	return deleteQdisc(c.Conn, qdisc.Root)
 }
 
-func (c *HTBCtx) FlushQdisc() error {
-	return deleteQdisc(c.Conn, c.Root)
-}
-
-// FlushQdisc removes the qdisc and filter rules for the given interface.
-func FlushQdisc(iface string) error {
+func FlushQdiscandFilters(iface string) error {
 	tcnl, err := tc.Open(&tc.Config{})
 	if err != nil {
 		return err
@@ -134,5 +143,5 @@ func FlushQdisc(iface string) error {
 			return err
 		}
 	}
-	return nft.DeleteTable()
+	return nil
 }

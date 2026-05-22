@@ -113,7 +113,7 @@ func enableQoS(app *ServerCtx, ifaceName string) error {
 	if iface.Enabled {
 		return nil
 	}
-	htbCtx, err := tc.NewHTBCtx(ifaceName)
+	htbCtx, err := tc.InitHTBQdisc(ifaceName)
 	if err != nil {
 		return err
 	}
@@ -125,18 +125,18 @@ func enableQoS(app *ServerCtx, ifaceName string) error {
 }
 
 func disableQoS(app *ServerCtx, ifaceName string) error {
-	iface := app.Ifaces[ifaceName]
-	if !iface.Enabled {
-		return nil
-	}
-	if iface.HTBCtx != nil {
-		err := iface.HTBCtx.FlushQdisc()
-		if err != nil {
-			return err
-		}
-	}
-
-	iface.Enabled = false
-	app.Ifaces[ifaceName] = iface
+	// iface := app.Ifaces[ifaceName]
+	// if !iface.Enabled {
+	// 	return nil
+	// }
+	// if iface.HTBCtx != nil {
+	// 	err := iface.HTBCtx.FlushQdisc()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+	//
+	// iface.Enabled = false
+	// app.Ifaces[ifaceName] = iface
 	return nil
 }
