@@ -494,8 +494,6 @@ func intervalEnd(networkPrefix netip.Prefix) netip.Addr {
 	if networkPrefix.IsSingleIP() {
 		return networkPrefix.Addr().Next()
 	}
-	networkPrefix.Bits()
-
 	networkAddr := networkPrefix.Masked().Addr()
 	hostBitLen := 32 - networkPrefix.Bits()
 
