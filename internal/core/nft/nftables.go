@@ -170,7 +170,7 @@ func addNewQosMChain(conn *nftables.Conn, table *nftables.Table, chainName strin
 }
 
 func lookupQoSMRules(conn *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ipSets qosmSets, oifIndex int, opts *NFTOpts) (qosmRules, error) {
-	Debug(opts.Logger, "nft: lookup of qosm rules", "chain", chain.Name)
+	Debug(opts.Logger, "nft: lookup of qosm rules", "chain", chain.Name, "ofindex", oifIndex)
 
 	rules, err := conn.GetRules(table, chain)
 	if err != nil {
@@ -437,26 +437,26 @@ func getRuleStats(rule *nftables.Rule) PrioritySetStats {
 // verifies each IP exists in the set, and collects them for deletion.
 // If any IP is not found in the set, an error is returned.
 func deleteIPsFromQoSIPSet(conn *nftables.Conn, ipSet *nftables.Set, ipNetworks []netip.Prefix) error {
-	setElements := make([]nftables.SetElement, 0, len(ipNetworks))
+	toDelete := make([]nftables.SetElement, 0, len(ipNetworks))
+
+	currentElements, err := getIPSetElements(conn, ipSet)
+	if err != nil {
+		return err
+	}
 
 	for _, network := range ipNetworks {
 		ip := network.Addr()
 		for network.Contains(ip) {
-			exists, err := ipExistsInQoSIPSet(conn, ipSet, ip)
-			if err != nil {
-				return err
+			if !slices.Contains(currentElements, ip) {
+				continue
 			}
-			if exists {
-				setElements = append(setElements, nftables.SetElement{Key: ip.AsSlice()})
-			} else {
-				return fmt.Errorf("%v is not found of the given priority set", ip)
-			}
+			toDelete = append(toDelete, nftables.SetElement{Key: ip.AsSlice()})
 			ip = ip.Next()
 		}
 	}
 
-	if len(setElements) > 0 {
-		err := conn.SetDeleteElements(ipSet, setElements)
+	if len(toDelete) > 0 {
+		err := conn.SetDeleteElements(ipSet, toDelete)
 		if err != nil {
 			return err
 		}
@@ -464,20 +464,4 @@ func deleteIPsFromQoSIPSet(conn *nftables.Conn, ipSet *nftables.Set, ipNetworks 
 	}
 
 	return nil
-}
-
-// ipExistsInQoSIPSet checks whether a given IP address exists in the specified nftables IP set.
-// It retrieves all elements from the set and searches for the given IP.
-// Returns true if the IP is found, false otherwise. Returns an error if retrieving set elements fails.
-func ipExistsInQoSIPSet(conn *nftables.Conn, ipSet *nftables.Set, givenIP netip.Addr) (bool, error) {
-	addrs, err := getIPSetElements(conn, ipSet)
-	if err != nil {
-		return false, err
-	}
-
-	if slices.Contains(addrs, givenIP) {
-		return true, nil
-	}
-
-	return false, nil
 }

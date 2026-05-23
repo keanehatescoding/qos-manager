@@ -192,10 +192,14 @@ func (c *NFTCtx) AddIfaceRules(ifIndex int) error {
 		return err
 	}
 
-	c.outputChain.Rules = make(map[IfaceIndex]qosmRules)
+	if c.outputChain.Rules == nil {
+		c.outputChain.Rules = make(map[IfaceIndex]qosmRules)
+	}
 	c.outputChain.Rules[IfaceIndex(ifIndex)] = outputRules
 
-	c.forwardChain.Rules = make(map[IfaceIndex]qosmRules)
+	if c.forwardChain.Rules == nil {
+		c.forwardChain.Rules = make(map[IfaceIndex]qosmRules)
+	}
 	c.forwardChain.Rules[IfaceIndex(ifIndex)] = forwardRules
 
 	return nil
@@ -210,6 +214,11 @@ func (c *NFTCtx) DeleteIfaceRules(ifIndex int) error {
 		CreateIfNotExists: false,
 		Logger:            c.Logger,
 	}
+
+	// first delete from the context itself
+	delete(c.forwardChain.Rules, IfaceIndex(ifIndex))
+	delete(c.outputChain.Rules, IfaceIndex(ifIndex))
+
 	// get rules in output chain for given interface
 	var errRuleNotFound ErrRuleNotFound
 	outputRules, err := lookupQoSMRules(c.conn, c.Table, c.outputChain.Chain, c.qosmSets, ifIndex, &nftOpts)
@@ -293,8 +302,6 @@ func (c *NFTCtx) Refresh() error {
 
 	return nil
 }
-
-func RemoveIface() {}
 
 // DeleteTable removes the qosm nftables table from the system. The context becomes invalid after this operation.
 func (c *NFTCtx) DeleteTable() error {
