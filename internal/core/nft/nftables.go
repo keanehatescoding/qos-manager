@@ -3,9 +3,12 @@ package nft
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
+	"math/bits"
 	"net/netip"
+	"os"
 	"slices"
 
 	"github.com/google/nftables"
@@ -320,7 +323,7 @@ func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table, opts *NFTOpts)
 			highPrio = set
 		}
 		if set.Name == LOWPRIOIPSETNAME {
-			Debug(opts.Logger, "nft: set lookup successfull", "name", LOWPRIOIPSETNAME)
+			Debug(opts.Logger, "nft: set lookup successful", "name", LOWPRIOIPSETNAME)
 			lowPrio = set
 		}
 	}
@@ -358,9 +361,10 @@ func lookupQoSMIPSets(conn *nftables.Conn, table *nftables.Table, opts *NFTOpts)
 func addQoSMIPSet(conn *nftables.Conn, table *nftables.Table, name string, logger *slog.Logger) (*nftables.Set, error) {
 	Debug(logger, "nft: creating set", "name", name)
 	set := &nftables.Set{
-		Table:   table,
-		Name:    name,
-		KeyType: nftables.TypeIPAddr,
+		Table:    table,
+		Name:     name,
+		KeyType:  nftables.TypeIPAddr,
+		Interval: true,
 	}
 	ipSetElements := []nftables.SetElement{}
 
@@ -377,43 +381,53 @@ func addQoSMIPSet(conn *nftables.Conn, table *nftables.Table, name string, logge
 	return set, nil
 }
 
-// addIPsToQoSMIPSet adds a collection of IP networks to the specified nftables IP set.
-// It iterates through each network prefix, expanding it to individual IP addresses,
-// and adds each IP as a set element.
-// Returns an error if the set add operation fails
 func addIPsToQoSMIPSet(conn *nftables.Conn, ipSet *nftables.Set, ipNetworks []netip.Prefix) error {
-	setElements := make([]nftables.SetElement, 0, len(ipNetworks))
-
+	rangeElements := make([]nftables.SetElement, 2)
 	for _, network := range ipNetworks {
-		ip := network.Addr()
-		for network.Contains(ip) {
-			setElements = append(setElements, nftables.SetElement{Key: ip.AsSlice()})
-
-			ip = ip.Next()
+		networkAddr := network.Masked().Addr()
+		if network.Addr() != networkAddr {
+			return fmt.Errorf("invalid CIDR -> %s is not a correct network address", network)
 		}
+		broadcast := intervalEnd(network)
+
+		rangeElements[0] = nftables.SetElement{Key: networkAddr.AsSlice()}
+		rangeElements[1] = nftables.SetElement{Key: broadcast.AsSlice(), IntervalEnd: true}
+
+		err := conn.SetAddElements(ipSet, rangeElements)
+		if err != nil {
+			return err
+		}
+		err = conn.Flush()
+		if err != nil {
+			if errors.Is(err, os.ErrExist) {
+				return fmt.Errorf("%s is already part of one of the IP ranges", network.String())
+			}
+			return err
+		}
+
 	}
 
-	err := conn.SetAddElements(ipSet, setElements)
-	if err != nil {
-		return err
-	}
-	return conn.Flush()
+	return nil
 }
 
 // getIPSetElements retrieves all IP addresses stored in the specified nftables IP set.
-func getIPSetElements(conn *nftables.Conn, set *nftables.Set) ([]netip.Addr, error) {
+func getIPSetElements(conn *nftables.Conn, set *nftables.Set) ([]netip.Prefix, error) {
 	elements, err := conn.GetSetElements(set)
 	if err != nil {
 		return nil, err
 	}
 
-	ips := make([]netip.Addr, 0, len(elements))
-	for _, element := range elements {
-		ip, ok := netip.AddrFromSlice(element.Key)
-		if !ok {
-			continue
+	ips := make([]netip.Prefix, 0, len(elements))
+
+	for i := 0; i < len(elements); i += 2 {
+		if i+1 == len(elements) {
+			return nil, fmt.Errorf("invald results from nftables")
 		}
-		ips = append(ips, ip)
+		prefix, err := reconstructNftIPRange(elements[i], elements[i+1])
+		if err != nil {
+			return nil, err
+		}
+		ips = append(ips, prefix)
 	}
 
 	return ips, nil
@@ -432,10 +446,6 @@ func getRuleStats(rule *nftables.Rule) PrioritySetStats {
 	return PrioritySetStats{}
 }
 
-// deleteIPsFromQoSIPSet removes a collection of IP networks from the specified nftables IP set.
-// It iterates through each network prefix, expanding it to individual IP addresses,
-// verifies each IP exists in the set, and collects them for deletion.
-// If any IP is not found in the set, an error is returned.
 func deleteIPsFromQoSIPSet(conn *nftables.Conn, ipSet *nftables.Set, ipNetworks []netip.Prefix) error {
 	toDelete := make([]nftables.SetElement, 0, len(ipNetworks))
 
@@ -445,14 +455,20 @@ func deleteIPsFromQoSIPSet(conn *nftables.Conn, ipSet *nftables.Set, ipNetworks 
 	}
 
 	for _, network := range ipNetworks {
-		ip := network.Addr()
-		for network.Contains(ip) {
-			if !slices.Contains(currentElements, ip) {
-				continue
-			}
-			toDelete = append(toDelete, nftables.SetElement{Key: ip.AsSlice()})
-			ip = ip.Next()
+		if !slices.Contains(currentElements, network) {
+			return fmt.Errorf(" Network %v not found", network)
 		}
+		start := network.Addr()
+		end := intervalEnd(network)
+
+		toDelete = append(toDelete,
+			nftables.SetElement{
+				Key: start.AsSlice(),
+			},
+			nftables.SetElement{
+				Key:         end.AsSlice(),
+				IntervalEnd: true,
+			})
 	}
 
 	if len(toDelete) > 0 {
@@ -464,4 +480,70 @@ func deleteIPsFromQoSIPSet(conn *nftables.Conn, ipSet *nftables.Set, ipNetworks 
 	}
 
 	return nil
+}
+
+func networkExistsInIPSet(conn *nftables.Conn, set *nftables.Set, network netip.Prefix) (bool, error) {
+	setElements, err := getIPSetElements(conn, set)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(setElements, network), nil
+}
+
+func intervalEnd(networkPrefix netip.Prefix) netip.Addr {
+	if networkPrefix.IsSingleIP() {
+		return networkPrefix.Addr().Next()
+	}
+	networkPrefix.Bits()
+
+	networkAddr := networkPrefix.Masked().Addr()
+	hostBitLen := 32 - networkPrefix.Bits()
+
+	ip := networkAddr.As4()
+
+	ipUint := uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
+	mask := uint32((1 << hostBitLen) - 1)
+
+	broadCast := ipUint | mask
+
+	return netip.AddrFrom4([4]byte{byte(broadCast >> 24), byte(broadCast >> 16), byte(broadCast >> 8), byte(broadCast)})
+}
+
+func reconstructNftIPRange(limit1 nftables.SetElement, limit2 nftables.SetElement) (netip.Prefix, error) {
+	var upper, lower []byte
+
+	if limit1.IntervalEnd {
+		upper = limit2.Key
+		lower = limit1.Key
+	} else {
+		upper = limit1.Key
+		lower = limit2.Key
+	}
+
+	start, ok := netip.AddrFromSlice(upper)
+	if !ok {
+		return netip.Prefix{}, fmt.Errorf("nft: invalid address")
+	}
+	end, ok := netip.AddrFromSlice(lower)
+	if !ok {
+		return netip.Prefix{}, fmt.Errorf("nft: invalid address")
+	}
+
+	if start.Next().Compare(end) == 0 { // single IP range
+		return netip.PrefixFrom(start, 32), nil
+	}
+
+	netAddr := binary.BigEndian.Uint32(start.AsSlice())
+	brodcastAddr := binary.BigEndian.Uint32(end.AsSlice())
+
+	if brodcastAddr < netAddr {
+		return netip.Prefix{}, fmt.Errorf("nft: invalid CIDR range")
+	}
+
+	size := brodcastAddr - netAddr // would be something like 255
+
+	hostbits := bits.Len32(size) // min number of bits required to represent size -> effectively hostbits
+	prefix := 32 - hostbits
+
+	return netip.PrefixFrom(start, prefix), nil
 }

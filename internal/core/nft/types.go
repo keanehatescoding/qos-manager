@@ -161,13 +161,21 @@ func (c *NFTCtx) DeleteTargetFromLowPriority(targets []netip.Prefix) error {
 }
 
 // GetHighPrioIPs returns all IP addresses in the high-priority set.
-func (c *NFTCtx) GetHighPrioIPs() ([]netip.Addr, error) {
+func (c *NFTCtx) GetHighPrioIPs() ([]netip.Prefix, error) {
 	return getIPSetElements(c.conn, c.highPrioSet)
 }
 
 // GetLowPrioIPs returns all IP addresses in the low-priority set.
-func (c *NFTCtx) GetLowPrioIPs() ([]netip.Addr, error) {
+func (c *NFTCtx) GetLowPrioIPs() ([]netip.Prefix, error) {
 	return getIPSetElements(c.conn, c.lowPrioSet)
+}
+
+func (c *NFTCtx) NetworkIsHighPriority(network netip.Prefix) (bool, error) {
+	return networkExistsInIPSet(c.conn, c.highPrioSet, network)
+}
+
+func (c *NFTCtx) NetworkIsLowPriority(network netip.Prefix) (bool, error) {
+	return networkExistsInIPSet(c.conn, c.lowPrioSet, network)
 }
 
 func (c *NFTCtx) AddIfaceRules(ifIndex int) error {
