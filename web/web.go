@@ -23,11 +23,11 @@ import (
 var staticFS embed.FS
 
 type ServerOptions struct {
-	Port            int
-	DBPath          string
-	SessionsEncKey  string
-	SessionsHashKey string
-	Debug           bool
+	Port           int
+	BPath          string
+	essionsEncKey  string
+	essionsHashKey string
+	ebug           bool
 }
 
 func Run(opts ServerOptions) error {
