@@ -1,5 +1,4 @@
-// Package dns is used to manage dns mappings of domain names.
-package dns
+package rules
 
 import (
 	"database/sql"
@@ -13,7 +12,7 @@ import (
 	"github.com/kakeetopius/qosm/internal/util"
 )
 
-var ErrNoDomains = errors.New(" No domain rules to refresh")
+var ErrNoDomainIPs = errors.New("no domain ips to refresh")
 
 func RefreshAllDomains(dbConn *sql.DB, htbCtx *htb.HTBCtx, logger *slog.Logger) error {
 	domains, err := db.GetAllDomainRules(dbConn)
@@ -23,7 +22,7 @@ func RefreshAllDomains(dbConn *sql.DB, htbCtx *htb.HTBCtx, logger *slog.Logger) 
 	util.Debug(logger, "dns: refreshing domains in database")
 
 	if len(domains) == 0 {
-		return ErrNoDomains
+		return ErrNoDomainIPs
 	}
 
 	for _, domain := range domains {

@@ -9,7 +9,6 @@ import (
 	"github.com/kakeetopius/qosm/internal/core/htb"
 	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/dns"
 	"github.com/kakeetopius/qosm/internal/rules"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -248,11 +247,8 @@ func RuleRefreshCmd() *cobra.Command {
 				return err
 			}
 
-			err = dns.RefreshAllDomains(dbCon, htbCtx, htbCtx.Logger)
+			err = rules.RefreshAllDomains(dbCon, htbCtx, htbCtx.Logger)
 			if err != nil {
-				if errors.Is(err, dns.ErrNoDomains) {
-					return nil
-				}
 				return err
 			}
 			fmt.Println("Refresh Successfully Completed")
