@@ -57,7 +57,7 @@ func RuleAddCmd() *cobra.Command {
 				return err
 			}
 
-			dbConn, err := db.NewConn()
+			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func RuleDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			dbConn, err := db.NewConn()
+			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
@@ -147,7 +147,7 @@ func RuleFlushCmd() *cobra.Command {
 		Short:   "Flush all QoS rules.",
 		Aliases: []string{"f"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbConn, err := db.NewConn()
+			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ func RuleListCmd() *cobra.Command {
 		Short:   "List all QoS rules.",
 		Aliases: []string{"l"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbConn, err := db.NewConn()
+			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
@@ -223,7 +223,7 @@ func RuleRefreshCmd() *cobra.Command {
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Refreshing Domains..................")
-			dbCon, err := db.NewConn()
+			dbCon, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}

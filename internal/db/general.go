@@ -2,8 +2,8 @@ package db
 
 import "database/sql"
 
-func Connect() (*sql.DB, error) {
-	db, err := sql.Open("sqlite", "./qos.db")
+func Connect(dbpath string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", dbpath)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +68,8 @@ func SetUp(db *sql.DB) error {
 	return nil
 }
 
-func NewConn() (*sql.DB, error) {
-	db, err := Connect()
+func NewConn(dbpath string) (*sql.DB, error) {
+	db, err := Connect(dbpath)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,7 @@ func IfaceEnableCmd() *cobra.Command {
 		Aliases: []string{"e"},
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbConn, err := db.NewConn()
+			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
@@ -84,7 +84,7 @@ func IfaceDisableCmd() *cobra.Command {
 		Aliases: []string{"d"},
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbCon, err := db.NewConn()
+			dbCon, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
@@ -185,7 +185,7 @@ func IfaceListCmd() *cobra.Command {
 		Aliases: []string{"l"},
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbCon, err := db.NewConn()
+			dbCon, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}

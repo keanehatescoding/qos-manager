@@ -45,7 +45,7 @@ func runRestore() error {
 		return err
 	}
 
-	dbConn, err := db.NewConn()
+	dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 	if err != nil {
 		return err
 	}

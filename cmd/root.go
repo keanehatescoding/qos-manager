@@ -14,6 +14,8 @@ import (
 var (
 	cfgFile string
 	debug   bool
+
+	appConfig *viper.Viper
 )
 
 var qosVersion = "qosm v0.0.1"
@@ -37,8 +39,14 @@ func Execute() {
 }
 
 func init() {
+	appConfig = viper.New()
+
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/config/qosm/qosm.toml)")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Run in debug mode")
+
+	rootCmd.PersistentFlags().String("db-path", "", "The path to the database file")
+	appConfig.BindPFlag("db.path", rootCmd.PersistentFlags().Lookup("db-path"))
+	appConfig.SetDefault("db.path", "./qos.db")
 
 	rootCmd.AddCommand(
 		versionCmd(),
@@ -52,7 +60,7 @@ func init() {
 func initConfig() error {
 	if cfgFile != "" {
 		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
+		appConfig.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
 		configDir, err := configDir()
@@ -60,27 +68,27 @@ func initConfig() error {
 			return err
 		}
 
-		// Search config in home directory with name "qosm" (without extension).
-		viper.AddConfigPath(path.Join(configDir, "qosm"))
+		// Search config in config directory with name "qosm"
+		appConfig.AddConfigPath(path.Join(configDir, "qosm"))
 
-		viper.SetConfigName("qosm")
-		viper.SetConfigType("toml")
+		appConfig.SetConfigName("qosm")
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	appConfig.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
-	err := viper.ReadInConfig()
+	err := appConfig.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// ignore error file not found
 			return nil
 		}
-		return fmt.Errorf("error reading config file %v: %w", viper.ConfigFileUsed(), err)
+		return fmt.Errorf("error reading config file %v: %w", appConfig.ConfigFileUsed(), err)
 	}
 
 	if debug {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		fmt.Fprintln(os.Stderr, "Using config file:", appConfig.ConfigFileUsed())
+		fmt.Fprintln(os.Stderr, "Using db file:", appConfig.GetString("db.path"))
 	}
 
 	return nil

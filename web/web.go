@@ -3,6 +3,7 @@ package web
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -19,6 +20,7 @@ var staticFS embed.FS
 
 type ServerOptions struct {
 	Port            int
+	Addr            string
 	DBPath          string
 	SessionsEncKey  string
 	SessionsHashKey string
@@ -34,7 +36,7 @@ func Run(opts ServerOptions) error {
 	}
 	router.HTMLRender = renderer
 
-	dbConn, err := db.NewConn()
+	dbConn, err := db.NewConn(opts.DBPath)
 	if err != nil {
 		return err
 	}
@@ -64,7 +66,7 @@ func Run(opts ServerOptions) error {
 	app.AddRoutes(router)
 	app.AddStaticRoutes(router, &staticFS)
 
-	router.Run()
+	router.Run(getAddress(opts.Addr, opts.Port))
 	return nil
 }
 
@@ -90,4 +92,12 @@ func createRenderer() (multitemplate.Renderer, error) {
 	r.AddFromFS("toast_error", tmplSubFS, "partials/toast_error.tmpl")
 	r.AddFromFS("rule_table_row", tmplSubFS, "partials/rule_table_row.tmpl")
 	return r, nil
+}
+
+func getAddress(addr string, port int) string {
+	if addr == "" && port == 0 {
+		return ":9000"
+	}
+
+	return fmt.Sprintf("%v:%v", addr, port)
 }
