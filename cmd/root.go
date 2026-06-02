@@ -114,8 +114,8 @@ func configDir() (string, error) {
 	if os.Geteuid() == 0 {
 		// running as root
 		sudoUser := os.Getenv("SUDO_USER")
-		if sudoUser == "" {
-			return "", fmt.Errorf("could not get sudo user variable")
+		if sudoUser == "" { // normal root user -> not sudo
+			return os.UserConfigDir()
 		}
 		u, err := user.Lookup(sudoUser)
 		if err != nil {
