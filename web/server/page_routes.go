@@ -80,17 +80,19 @@ func (app *ServerCtx) DashboardPage(c *gin.Context) {
 		return -a.CreatedAt.Compare(b.CreatedAt)
 	})
 
+	rulesToDisplay := allRules
 	if len(allRules) > 5 {
-		allRules = allRules[:5]
+		rulesToDisplay = allRules[:5]
 	}
 
 	c.HTML(http.StatusOK, "dashboard", gin.H{
+		"Title":       "DashBoard - QoS Manager",
 		"Heading":     "Dashboard",
 		"Description": "Overview of network traffic and QoS policies",
 		"User":        session.Get("username"),
 		"Role":        session.Get("role"),
 		"Enabled":     len(enabled) > 0,
-		"Rules":       allRules,
+		"Rules":       rulesToDisplay,
 		"Stats":       dashBoardStats(allRules),
 		"Ifaces":      app.Ifaces,
 	})
@@ -129,6 +131,7 @@ func (app *ServerCtx) RulesPage(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "rules", gin.H{
+		"Title":       "Rules - QoS Manager",
 		"Heading":     "Rules",
 		"Description": "Define how network traffic should be prioritized or limited",
 		"User":        session.Get("username"),
@@ -140,6 +143,7 @@ func (app *ServerCtx) RulesPage(c *gin.Context) {
 func (app *ServerCtx) AnalyticsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	c.HTML(http.StatusOK, "analytics", gin.H{
+		"Title":       "Analytics - QoS Manager",
 		"Heading":     "Analytics",
 		"Description": "Network usage insights and QoS effectiveness",
 		"User":        session.Get("username"),
@@ -150,6 +154,7 @@ func (app *ServerCtx) AnalyticsPage(c *gin.Context) {
 func (app *ServerCtx) SettingsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	c.HTML(http.StatusOK, "settings", gin.H{
+		"Title":       "Settings - QoS Manager",
 		"Heading":     "Settings",
 		"Description": "Configure QoS engine behavior and system preferences",
 		"User":        session.Get("username"),
@@ -181,6 +186,7 @@ func (app *ServerCtx) LogsPage(c *gin.Context) {
 		return
 	}
 	c.HTML(http.StatusOK, "logs", gin.H{
+		"Title":       "Logs - QoS Manager",
 		"Heading":     "Logs",
 		"Description": "Real-time QoS engine and network activity logs",
 		"User":        session.Get("username"),

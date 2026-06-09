@@ -39,8 +39,8 @@ func (app *ServerCtx) PostRules(c *gin.Context) {
 		return
 	}
 
-	c.Header("HX-Trigger", `{"toast":"Rule added"}`)
 	SendNewRuleRow(c, rule)
+	SendSuccessMessage(c, "Successfully added rule.")
 }
 
 func (app *ServerCtx) DeleteRule(c *gin.Context) {
@@ -65,7 +65,7 @@ func (app *ServerCtx) DeleteRule(c *gin.Context) {
 		return
 	}
 
-	c.Header("HX-Trigger", `{"toast":"Rule deleted successfully"}`)
+	SendSuccessMessage(c, "Successfully deleted rule.")
 }
 
 func SendNewRuleRow(c *gin.Context, rule rules.Rule) {

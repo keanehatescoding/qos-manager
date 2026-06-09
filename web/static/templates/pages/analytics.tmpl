@@ -1,116 +1,141 @@
 {{ define "content" }}
-<main class="flex-1 p-8 space-y-8">
-	<!-- KPI Cards -->
-	<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+<main class="flex-1 p-8 space-y-8 bg-zinc-950 text-white">
 
-		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-			<p class="text-sm text-zinc-400">Total Bandwidth</p>
-			<h3 class="text-3xl font-bold mt-2">120 Mbps</h3>
+	<!-- TOP KPI CARDS -->
+	<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+		<div class="rounded-xl bg-zinc-800/60 p-5 shadow-md hover:bg-zinc-800 transition">
+			<p class="text-sm text-zinc-400">Total throughput</p>
+			<h3 class="text-2xl font-semibold mt-1 text-green-400">842 Mbps</h3>
+			<p class="text-xs text-zinc-500 mt-1">across all classes</p>
 		</div>
 
-		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-			<p class="text-sm text-zinc-400">Peak Usage</p>
-			<h3 class="text-3xl font-bold mt-2">7:45 PM</h3>
+		<div class="rounded-xl bg-zinc-800/60 p-5 shadow-md hover:bg-zinc-800 transition">
+			<p class="text-sm text-zinc-400">Total packets</p>
+			<h3 class="text-2xl font-semibold mt-1">12,483,921</h3>
+			<p class="text-xs text-zinc-500 mt-1">enqueued</p>
 		</div>
 
-		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-			<p class="text-sm text-zinc-400">Active Connections</p>
-			<h3 class="text-3xl font-bold mt-2">243</h3>
+		<div class="rounded-xl bg-zinc-800/60 p-5 shadow-md hover:bg-zinc-800 transition">
+			<p class="text-sm text-zinc-400">Total drops</p>
+			<h3 class="text-2xl font-semibold mt-1 text-red-400">3,214</h3>
+			<p class="text-xs text-zinc-500 mt-1">across all classes</p>
 		</div>
 
-		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-			<p class="text-sm text-zinc-400">QoS Rules Triggered</p>
-			<h3 class="text-3xl font-bold mt-2">1,892</h3>
+		<div class="rounded-xl bg-zinc-800/60 p-5 shadow-md hover:bg-zinc-800 transition">
+			<p class="text-sm text-zinc-400">Total overlimits</p>
+			<h3 class="text-2xl font-semibold mt-1 text-yellow-300">58,901</h3>
+			<p class="text-xs text-zinc-500 mt-1">throttle events</p>
 		</div>
 
 	</section>
 
-	<!-- Middle section -->
-	<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+	<!-- HTB CLASS CARDS -->
+	<section>
+		<p class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+			HTB class breakdown
+		</p>
 
-		<!-- Traffic by Domain -->
-		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-			<h3 class="text-lg font-semibold mb-4">Top Domains</h3>
-
-			<div class="space-y-3 text-sm">
-
-				<div class="flex justify-between">
-					<span>youtube.com</span>
-					<span class="text-zinc-400">35%</span>
+			<!-- HIGH -->
+			<div class="rounded-2xl border border-green-600/30 bg-zinc-900 p-6  hover:scale-[1.01] transition">
+				<div class="flex items-center gap-3 pb-4 mb-4 border-b border-zinc-800">
+					<span class="h-2 w-2 rounded-full bg-green-500"></span>
+					<span class="font-medium">High Priority</span>
 				</div>
 
-				<div class="flex justify-between">
-					<span>netflix.com</span>
-					<span class="text-zinc-400">20%</span>
+				<div class="space-y-2 text-sm">
+					<div class="flex justify-between"><span class="text-zinc-400">Current rate</span><span>120
+							Mbps</span></div>
+					<div class="flex justify-between"><span class="text-zinc-400">Packets/s</span><span>45,210</span>
+					</div>
+					<div class="flex justify-between"><span class="text-zinc-400">Total bytes</span><span>8.1 GB</span>
+					</div>
+					<div class="flex justify-between"><span class="text-zinc-400">Drops</span><span
+							class="text-red-400">120</span></div>
+					<div class="flex justify-between"><span class="text-zinc-400">Queue backlog</span><span>32 KB</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- DEFAULT -->
+			<div class="rounded-2xl border border-blue-600/30 bg-zinc-900 p-6 hover:scale-[1.01] transition">
+				<div class="flex items-center gap-3 pb-4 mb-4 border-b border-zinc-800">
+					<span class="h-2 w-2 rounded-full bg-blue-500"></span>
+					<span class="font-medium">Default Traffic</span>
 				</div>
 
-				<div class="flex justify-between">
-					<span>github.com</span>
-					<span class="text-zinc-400">15%</span>
+				<div class="space-y-2 text-sm">
+					<div class="flex justify-between"><span class="text-zinc-400">Current rate</span><span>540
+							Mbps</span></div>
+					<div class="flex justify-between"><span class="text-zinc-400">Packets/s</span><span>210,003</span>
+					</div>
+					<div class="flex justify-between"><span class="text-zinc-400">Total bytes</span><span>32.4 GB</span>
+					</div>
+					<div class="flex justify-between"><span class="text-zinc-400">Drops</span><span
+							class="text-yellow-400">2,900</span></div>
+					<div class="flex justify-between"><span class="text-zinc-400">Queue backlog</span><span>1.2
+							MB</span></div>
+				</div>
+			</div>
+
+			<!-- LOW -->
+			<div class="rounded-2xl border border-amber-600/30 bg-zinc-900 p-6 hover:scale-[1.01] transition">
+				<div class="flex items-center gap-3 pb-4 mb-4 border-b border-zinc-800">
+					<span class="h-2 w-2 rounded-full bg-amber-500"></span>
+					<span class="font-medium">Low Priority</span>
 				</div>
 
-				<div class="flex justify-between">
-					<span>zoom.us</span>
-					<span class="text-zinc-400">10%</span>
+				<div class="space-y-2 text-sm">
+					<div class="flex justify-between"><span class="text-zinc-400">Current rate</span><span>180
+							Mbps</span></div>
+					<div class="flex justify-between"><span class="text-zinc-400">Packets/s</span><span>88,120</span>
+					</div>
+					<div class="flex justify-between"><span class="text-zinc-400">Total bytes</span><span>11.7 GB</span>
+					</div>
+					<div class="flex justify-between"><span class="text-zinc-400">Drops</span><span
+							class="text-red-400">194</span></div>
+					<div class="flex justify-between"><span class="text-zinc-400">Queue backlog</span><span>420
+							KB</span></div>
 				</div>
-
 			</div>
 
 		</div>
-
-		<!-- Top Devices -->
-		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-
-			<h3 class="text-lg font-semibold mb-4">Top Devices</h3>
-
-			<div class="space-y-3 text-sm">
-
-				<div class="flex justify-between">
-					<span>192.168.1.20</span>
-					<span class="text-zinc-400">45 Mbps</span>
-				</div>
-
-				<div class="flex justify-between">
-					<span>192.168.1.12</span>
-					<span class="text-zinc-400">32 Mbps</span>
-				</div>
-
-				<div class="flex justify-between">
-					<span>192.168.1.45</span>
-					<span class="text-zinc-400">18 Mbps</span>
-				</div>
-
-			</div>
-
-		</div>
-
 	</section>
 
-	<!-- Time Series Placeholder -->
-	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+	<!-- TRAFFIC SHARE -->
+	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
 
-		<h3 class="text-lg font-semibold mb-4">Traffic Over Time</h3>
+		<p class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+			Traffic share by class
+		</p>
 
-		<div class="h-48 flex items-center justify-center text-zinc-500 text-sm">
-			<!-- Placeholder for future chart (Chart.js / Recharts / HTMX) -->
-			Graph goes here (bandwidth over time)
+		<div class="flex gap-4 text-xs text-zinc-400">
+			<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 bg-green-500"></span>High</span>
+			<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 bg-blue-500"></span>Default</span>
+			<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 bg-amber-500"></span>Low</span>
 		</div>
 
-	</section>
+		<!-- BAR -->
+		<div class="h-3 rounded-full overflow-hidden flex bg-zinc-800">
+			<div class="bg-green-500 w-[18%]"></div>
+			<div class="bg-blue-500 w-[62%]"></div>
+			<div class="bg-amber-500 w-[20%]"></div>
+		</div>
 
-	<!-- Event Log -->
-	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+		<div class="flex justify-between text-xs text-zinc-500">
+			<span>18% High</span>
+			<span>62% Default</span>
+			<span>20% Low</span>
+		</div>
 
-		<h3 class="text-lg font-semibold mb-4">Recent Events</h3>
-
-		<div class="space-y-3 text-sm text-zinc-300">
-
-			<p>[12:01] youtube.com classified as LOW priority</p>
-			<p>[12:03] 192.168.1.12 exceeded bandwidth threshold</p>
-			<p>[12:07] QoS rule applied to zoom.us connection</p>
-			<p>[12:10] Netflix traffic throttled successfully</p>
-
+		<!-- CHART PLACEHOLDER -->
+		<div class="h-64 mt-4 border-t border-zinc-800 flex flex-col items-center justify-center gap-2 text-zinc-600">
+			<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+				<polyline points="2 12 6 12 9 3 15 21 18 12 22 12" />
+			</svg>
+			<span class="text-sm">Traffic trends (bps over time)</span>
 		</div>
 
 	</section>
