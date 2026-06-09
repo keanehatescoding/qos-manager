@@ -14,6 +14,14 @@ import (
 	"github.com/kakeetopius/qosm/internal/rules"
 )
 
+type DashBoardStats struct {
+	HighPrioTargets int
+	LowPrioTargets  int
+	TotalTargets    int
+	TotalDomains    int
+	TotalIPs        int
+}
+
 func (app *ServerCtx) LoginPost(ctx *gin.Context) {
 	username := ctx.PostForm("username")
 	password := ctx.PostForm("password")
@@ -62,6 +70,7 @@ func (app *ServerCtx) LoginPage(c *gin.Context) {
 func (app *ServerCtx) DashboardPage(c *gin.Context) {
 	session := sessions.Default(c)
 	enabled := app.EnabledIfaces()
+
 	allRules, err := rules.GetAll(app.DB)
 	if err != nil {
 		c.Error(err)
@@ -80,10 +89,35 @@ func (app *ServerCtx) DashboardPage(c *gin.Context) {
 		"Description": "Overview of network traffic and QoS policies",
 		"User":        session.Get("username"),
 		"Role":        session.Get("role"),
-		"Settings":    app.Settings,
 		"Enabled":     len(enabled) > 0,
 		"Rules":       allRules,
+		"Stats":       dashBoardStats(allRules),
+		"Ifaces":      app.Ifaces,
 	})
+}
+
+func dashBoardStats(rules []rules.Rule) DashBoardStats {
+	stats := DashBoardStats{}
+
+	for _, rule := range rules {
+		switch rule.Type {
+		case "domain":
+			stats.TotalDomains++
+		case "ip":
+			stats.TotalIPs++
+		}
+
+		switch rule.Priority {
+		case "high":
+			stats.HighPrioTargets++
+		case "low":
+			stats.LowPrioTargets++
+		}
+	}
+
+	stats.TotalTargets = len(rules)
+
+	return stats
 }
 
 func (app *ServerCtx) RulesPage(c *gin.Context) {
@@ -111,6 +145,32 @@ func (app *ServerCtx) AnalyticsPage(c *gin.Context) {
 		"User":        session.Get("username"),
 		"Role":        session.Get("role"),
 	})
+}
+
+func (app *ServerCtx) SettingsPage(c *gin.Context) {
+	session := sessions.Default(c)
+	c.HTML(http.StatusOK, "settings", gin.H{
+		"Heading":     "Settings",
+		"Description": "Configure QoS engine behavior and system preferences",
+		"User":        session.Get("username"),
+		"Role":        session.Get("role"),
+		"Settings":    app.Settings,
+		"Ifaces":      app.Ifaces,
+	})
+}
+
+func (app *ServerCtx) Logout(c *gin.Context) {
+	session := sessions.Default(c)
+	username := session.Get("username").(string)
+
+	session.Clear()
+	session.Save()
+
+	db.AddLog(app.DB, db.Log{
+		EventType:   "INFO",
+		Description: "logout for user " + username,
+	})
+	c.Redirect(http.StatusFound, "/login")
 }
 
 func (app *ServerCtx) LogsPage(c *gin.Context) {
@@ -153,28 +213,10 @@ func (app *ServerCtx) LogsFilter(c *gin.Context) {
 	})
 }
 
-func (app *ServerCtx) SettingsPage(c *gin.Context) {
-	session := sessions.Default(c)
-	c.HTML(http.StatusOK, "settings", gin.H{
-		"Heading":     "Settings",
-		"Description": "Configure QoS engine behavior and system preferences",
-		"User":        session.Get("username"),
-		"Role":        session.Get("role"),
-		"Settings":    app.Settings,
-		"Ifaces":      app.Ifaces,
-	})
-}
-
-func (app *ServerCtx) Logout(c *gin.Context) {
-	session := sessions.Default(c)
-	username := session.Get("username").(string)
-
-	session.Clear()
-	session.Save()
-
-	db.AddLog(app.DB, db.Log{
-		EventType:   "INFO",
-		Description: "logout for user " + username,
-	})
-	c.Redirect(http.StatusFound, "/login")
+func (app *ServerCtx) LogsDelete(c *gin.Context) {
+	err := db.DeleteAllLogs(app.DB)
+	if err != nil {
+		c.Error(err)
+		return
+	}
 }

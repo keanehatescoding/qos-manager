@@ -15,10 +15,15 @@
 
 {{ else if .EventType | eq "DNS" }}
 {{ $eventClass = "text-purple-400" }}
+
+{{ else if .EventType | eq "TC" }}
+{{ $eventClass = "text-orange-400" }}
 {{ end }}
 
 <div class="flex gap-3">
-	<span class="{{$eventClass}}">[{{- .EventType }}]</span>
+	<span class="{{$eventClass}} inline-block w-14">
+		[{{- .EventType }}]
+	</span>
 	<span class="text-zinc-400">{{ .TimeStamp }}</span>
 	<span>{{ .Description }}</span>
 </div>

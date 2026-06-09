@@ -127,6 +127,32 @@ func GetLogsOfUser(db *sql.DB, userName string) ([]Log, error) {
 	return getLogs(stmt, userName)
 }
 
+func DeleteAllLogs(db *sql.DB) error {
+	_, err := db.Exec(`
+	DELETE FROM logs
+	`)
+
+	return err
+}
+
+func DeleteLogsOfEvent(db *sql.DB, eventType string) error {
+	_, err := db.Exec(`
+	DELETE FROM logs
+	WHERE event_type = ?
+	`, eventType)
+
+	return err
+}
+
+func DeleteLogsOfUser(db *sql.DB, username string) error {
+	_, err := db.Exec(`
+	DELETE FROM logs
+	WHERE user_name = ?
+	`, username)
+
+	return err
+}
+
 func getLogs(query *sql.Stmt, args ...any) ([]Log, error) {
 	var rows *sql.Rows
 	var err error

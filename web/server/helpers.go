@@ -107,6 +107,7 @@ func (app *ServerCtx) AddRoutes(router *gin.Engine) {
 	admin.GET("/analytics", app.AnalyticsPage)
 	admin.GET("/logs", app.LogsPage)
 	admin.GET("/logs/filter", app.LogsFilter)
+	admin.DELETE("/logs/delete", app.LogsDelete)
 
 	admin.GET("/settings", app.SettingsPage)
 	admin.POST("/settings/system/save", app.PostSystemSettings)

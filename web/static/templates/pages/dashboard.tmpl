@@ -1,15 +1,14 @@
 {{ define "content" }}
 <main class="flex-1 p-8 space-y-8 overflow-y-auto">
 	<!-- Stats Cards -->
-	<section class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-
+	<section class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
 			<p class="text-sm text-zinc-400">
 				Active Rules
 			</p>
 
 			<h3 class="mt-2 text-3xl font-bold">
-				24
+				{{ .Stats.TotalTargets }}
 			</h3>
 		</div>
 
@@ -19,17 +18,39 @@
 			</p>
 
 			<h3 class="mt-2 text-3xl font-bold">
-				13
+				{{ .Stats.TotalDomains }}
 			</h3>
 		</div>
 
 		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
 			<p class="text-sm text-zinc-400">
-				High Priority Devices
+				Managed IPs
 			</p>
 
 			<h3 class="mt-2 text-3xl font-bold">
-				8
+				{{ .Stats.TotalIPs }}
+			</h3>
+		</div>
+	</section>
+
+	<section class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">
+				High Priority Targets
+			</p>
+
+			<h3 class="mt-2 text-3xl font-bold">
+				{{ .Stats.HighPrioTargets }}
+			</h3>
+		</div>
+
+		<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+			<p class="text-sm text-zinc-400">
+				Low Priority Rules
+			</p>
+
+			<h3 class="mt-2 text-3xl font-bold">
+				{{ .Stats.LowPrioTargets }}
 			</h3>
 		</div>
 
@@ -136,48 +157,38 @@
 
 	</section>
 
-	<!-- Recent Activity -->
-	<section class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+	<div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+		<div class="flex items-center justify-between mb-4">
+			<p class="text-sm text-zinc-400">
+				Network Interfaces
+			</p>
 
-		<h3 class="text-lg font-semibold">
-			Recent Activity
-		</h3>
-
-		<div class="mt-4 space-y-4 text-sm">
-
-			<div class="flex items-start gap-3">
-				<div class="mt-1 h-2 w-2 rounded-full bg-green-500"></div>
-
-				<p class="text-zinc-300">
-					Applied HIGH priority to
-					<span class="font-medium text-white">
-						192.168.1.12
-					</span>
-				</p>
-			</div>
-
-			<div class="flex items-start gap-3">
-				<div class="mt-1 h-2 w-2 rounded-full bg-blue-500"></div>
-
-				<p class="text-zinc-300">
-					Reloaded QoS policies successfully
-				</p>
-			</div>
-
-			<div class="flex items-start gap-3">
-				<div class="mt-1 h-2 w-2 rounded-full bg-yellow-500"></div>
-
-				<p class="text-zinc-300">
-					New domain rule added for
-					<span class="font-medium text-white">
-						youtube.com
-					</span>
-				</p>
-			</div>
-
+			<span class="text-xs text-zinc-500">
+				TC status
+			</span>
 		</div>
 
-	</section>
+		<div class="space-y-3 text-sm">
+			{{ range .Ifaces }}
+			{{ $dotColor := "bg-red-500" }}
+			{{ if .Enabled }}
+			{{ $dotColor = "bg-green-500" }}
+			{{ end }}
+			<div class="flex items-center justify-between py-2">
+				<div class="flex items-center gap-3">
+					<span class="{{ $dotColor }} h-3 w-3 rounded-full"></span>
+					<span class="text-base font-medium">
+						{{ .Name }}
+					</span>
+				</div>
+				<span class="text-sm text-zinc-400">
+					{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}
+				</span>
 
+			</div>
+			{{ end }}
+
+		</div>
+	</div>
 </main>
 {{ end }}
