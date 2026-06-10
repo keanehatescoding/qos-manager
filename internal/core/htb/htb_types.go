@@ -2,19 +2,12 @@ package htb
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/florianl/go-tc"
 	"github.com/florianl/go-tc/core"
 	"github.com/kakeetopius/qosm/internal/core/nft"
-)
-
-type Priority int
-
-const (
-	PRIORITYHIGH Priority = iota + 1
-	PRIORITYLOW
+	"github.com/kakeetopius/qosm/internal/prio"
 )
 
 const (
@@ -66,7 +59,7 @@ type HTBClass struct {
 	Rate         uint32 // in bytes per second
 	Burst        uint32
 	Cburst       uint32
-	Priority
+	prio.Priority
 }
 
 type FWFilter struct {
@@ -93,15 +86,4 @@ func (f ErrClassNotFound) Error() string {
 
 func (f ErrFilterNotFound) Error() string {
 	return "filter " + f.FilterName + " not found"
-}
-
-func PriorityFromString(prioString string) (Priority, error) {
-	switch prioString {
-	case "high":
-		return PRIORITYHIGH, nil
-	case "low":
-		return PRIORITYLOW, nil
-	}
-
-	return 0, fmt.Errorf("unknown priority: %v", prioString)
 }

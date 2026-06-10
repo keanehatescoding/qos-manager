@@ -6,10 +6,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/kakeetopius/qosm/internal/core/htb"
 	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/rules"
+	"github.com/kakeetopius/qosm/internal/qos"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -40,19 +39,18 @@ func RuleAddCmd() *cobra.Command {
 		Aliases: []string{"a"},
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			htbCtx, err := htb.NewHTBCtx()
+			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
-			defer htbCtx.Close()
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
-				htbCtx.WithLogger(logger)
+				qosManager.WithLogger(logger)
 			}
 
-			err = htbCtx.InitHTBFilter(true)
+			err = qosManager.InitQoSClassifier(true)
 			if err != nil {
 				return err
 			}
@@ -64,9 +62,9 @@ func RuleAddCmd() *cobra.Command {
 
 			switch ruleType {
 			case "ip":
-				_, err = rules.AddIPRule(dbConn, htbCtx, args[0], priority, htbCtx.Logger)
+				_, err = qosManager.AddIPRule(dbConn, args[0], priority)
 			case "domain":
-				_, err = rules.AddDomainRule(dbConn, htbCtx, args[0], priority, htbCtx.Logger)
+				_, err = qosManager.AddDomainRule(dbConn, args[0], priority)
 			default:
 				err = fmt.Errorf("unknown rule type: %s", ruleType)
 			}
@@ -94,7 +92,7 @@ func RuleDeleteCmd() *cobra.Command {
 		Aliases: []string{"d"},
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			htbCtx, err := htb.NewHTBCtx()
+			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
@@ -102,10 +100,10 @@ func RuleDeleteCmd() *cobra.Command {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
-				htbCtx.WithLogger(logger)
+				qosManager.WithLogger(logger)
 			}
 
-			err = htbCtx.InitHTBFilter(false)
+			err = qosManager.InitQoSClassifier(false)
 			if err != nil {
 				if errors.Is(err, nft.ErrTableNotFound) {
 					return fmt.Errorf(" No tc rules added yet by qosm ")
@@ -120,9 +118,9 @@ func RuleDeleteCmd() *cobra.Command {
 
 			switch ruleType {
 			case "domain":
-				err = rules.DeleteDomainRuleByName(dbConn, htbCtx, args[0])
+				err = qosManager.DeleteDomainRuleByName(dbConn, args[0])
 			case "ip":
-				err = rules.DeleteIPRuleByName(dbConn, htbCtx, args[0])
+				err = qosManager.DeleteIPRuleByName(dbConn, args[0])
 			default:
 				err = fmt.Errorf("unknown rule type: %s", ruleType)
 			}
@@ -147,12 +145,16 @@ func RuleFlushCmd() *cobra.Command {
 		Short:   "Flush all QoS rules.",
 		Aliases: []string{"f"},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			qosManager, err := qos.NewManager()
+			if err != nil {
+				return err
+			}
 			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
 
-			err = rules.DeleteAll(dbConn, nil)
+			err = qosManager.DeleteAllRules(dbConn)
 			if err != nil {
 				return err
 			}
@@ -174,11 +176,15 @@ func RuleListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			highPrio, err := rules.GetHighPriority(dbConn)
+			qosManger, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
-			lowPrio, err := rules.GetLowPriority(dbConn)
+			highPrio, err := qosManger.GetHighPriority(dbConn)
+			if err != nil {
+				return err
+			}
+			lowPrio, err := qosManger.GetLowPriority(dbConn)
 			if err != nil {
 				return err
 			}
@@ -228,7 +234,7 @@ func RuleRefreshCmd() *cobra.Command {
 				return err
 			}
 
-			htbCtx, err := htb.NewHTBCtx()
+			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
@@ -236,10 +242,10 @@ func RuleRefreshCmd() *cobra.Command {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
-				htbCtx.WithLogger(logger)
+				qosManager.WithLogger(logger)
 			}
 
-			err = htbCtx.InitHTBFilter(false)
+			err = qosManager.InitQoSClassifier(false)
 			if err != nil {
 				if errors.Is(err, nft.ErrTableNotFound) {
 					return fmt.Errorf(" No tc rules added yet by qosm ")
@@ -247,7 +253,7 @@ func RuleRefreshCmd() *cobra.Command {
 				return err
 			}
 
-			err = rules.RefreshAllDomains(dbCon, htbCtx, htbCtx.Logger)
+			err = qosManager.RefreshAllDomains(dbCon)
 			if err != nil {
 				return err
 			}

@@ -4,7 +4,41 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+
+	"github.com/kakeetopius/qosm/internal/prio"
 )
+
+func (c *NFT) AddTargetsToPriority(targets []netip.Prefix, priorityString string) error {
+	priority, err := prio.PriorityFromString(priorityString)
+	if err != nil {
+		return err
+	}
+
+	switch priority {
+	case prio.PRIORITYHIGH:
+		return c.AddTargetsToHighPriority(targets)
+	case prio.PRIORITYLOW:
+		return c.AddTargetsToLowPriority(targets)
+	default:
+		return fmt.Errorf("unknown priority %v", priority)
+	}
+}
+
+func (c *NFT) DeleteTargetsFromPriority(targets []netip.Prefix, priorityString string) error {
+	priority, err := prio.PriorityFromString(priorityString)
+	if err != nil {
+		return err
+	}
+
+	switch priority {
+	case prio.PRIORITYHIGH:
+		return c.DeleteTargetFromHighPriority(targets)
+	case prio.PRIORITYLOW:
+		return c.DeleteTargetFromLowPriority(targets)
+	default:
+		return fmt.Errorf("unknown priority %v", priority)
+	}
+}
 
 // AddTargetsToHighPriority ip addresses to the high-priority IP set.
 func (c *NFT) AddTargetsToHighPriority(targets []netip.Prefix) error {

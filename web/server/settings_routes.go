@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/tc"
 )
 
 func (app *ServerCtx) PostSystemSettings(c *gin.Context) {
@@ -115,7 +114,7 @@ func enableQoS(app *ServerCtx, ifaceName string) error {
 		return nil
 	}
 
-	err := tc.EnableTcOnInterface(net.Interface{Name: iface.Name, Index: iface.Index}, app.HTBCtx, app.DB)
+	err := app.QoSManager.EnableTcOnInterface(net.Interface{Name: iface.Name, Index: iface.Index}, app.DB)
 	if err != nil {
 		return err
 	}
@@ -132,7 +131,7 @@ func disableQoS(app *ServerCtx, ifaceName string) error {
 		return nil
 	}
 
-	err := tc.DisableTcOnInterface(net.Interface{Name: iface.Name, Index: iface.Index}, app.HTBCtx, app.DB)
+	err := app.QoSManager.DisableTcOnInterface(net.Interface{Name: iface.Name, Index: iface.Index}, app.DB)
 	if err != nil {
 		return err
 	}

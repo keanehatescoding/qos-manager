@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kakeetopius/qosm/internal/rules"
+	"github.com/kakeetopius/qosm/internal/qos"
 )
 
 type PostForm struct {
@@ -24,12 +24,12 @@ func (app *ServerCtx) PostRules(c *gin.Context) {
 	}
 
 	var err error
-	var rule rules.Rule
+	var rule qos.Rule
 	switch form.RuleType {
 	case "ip":
-		rule, err = rules.AddIPRule(app.DB, app.HTBCtx, form.Target, form.Priority, app.Logger)
+		rule, err = app.QoSManager.AddIPRule(app.DB, form.Target, form.Priority)
 	case "domain":
-		rule, err = rules.AddDomainRule(app.DB, app.HTBCtx, form.Target, form.Priority, app.Logger)
+		rule, err = app.QoSManager.AddDomainRule(app.DB, form.Target, form.Priority)
 	default:
 		err = fmt.Errorf("unknown rule type: %s", form.RuleType)
 	}
@@ -53,9 +53,9 @@ func (app *ServerCtx) DeleteRule(c *gin.Context) {
 
 	switch ruleType {
 	case "domain":
-		err = rules.DeleteDomainRuleByID(app.DB, app.HTBCtx, ruleID)
+		err = app.QoSManager.DeleteDomainRuleByID(app.DB, ruleID)
 	case "ip":
-		err = rules.DeleteIPRuleByID(app.DB, app.HTBCtx, ruleID)
+		err = app.QoSManager.DeleteIPRuleByID(app.DB, ruleID)
 	default:
 		err = fmt.Errorf("unknown rule type: %s", ruleType)
 	}
@@ -68,7 +68,7 @@ func (app *ServerCtx) DeleteRule(c *gin.Context) {
 	SendSuccessMessage(c, "Successfully deleted rule.")
 }
 
-func SendNewRuleRow(c *gin.Context, rule rules.Rule) {
+func SendNewRuleRow(c *gin.Context, rule qos.Rule) {
 	c.HTML(http.StatusOK, "rule_table_row", gin.H{
 		"Rule": rule,
 	})

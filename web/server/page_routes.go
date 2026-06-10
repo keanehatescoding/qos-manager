@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kakeetopius/qosm/internal/core/pam"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/rules"
+	"github.com/kakeetopius/qosm/internal/qos"
 )
 
 type DashBoardStats struct {
@@ -71,12 +71,12 @@ func (app *ServerCtx) DashboardPage(c *gin.Context) {
 	session := sessions.Default(c)
 	enabled := app.EnabledIfaces()
 
-	allRules, err := rules.GetAll(app.DB)
+	allRules, err := app.QoSManager.GetAllRules(app.DB)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	slices.SortFunc(allRules, func(a, b rules.Rule) int {
+	slices.SortFunc(allRules, func(a, b qos.Rule) int {
 		return -a.CreatedAt.Compare(b.CreatedAt)
 	})
 
@@ -98,7 +98,7 @@ func (app *ServerCtx) DashboardPage(c *gin.Context) {
 	})
 }
 
-func dashBoardStats(rules []rules.Rule) DashBoardStats {
+func dashBoardStats(rules []qos.Rule) DashBoardStats {
 	stats := DashBoardStats{}
 
 	for _, rule := range rules {
@@ -124,7 +124,7 @@ func dashBoardStats(rules []rules.Rule) DashBoardStats {
 
 func (app *ServerCtx) RulesPage(c *gin.Context) {
 	session := sessions.Default(c)
-	rules, err := rules.GetAll(app.DB)
+	rules, err := app.QoSManager.GetAllRules(app.DB)
 	if err != nil {
 		c.Error(err)
 		return

@@ -5,10 +5,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/kakeetopius/qosm/internal/core/htb"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/rules"
-	"github.com/kakeetopius/qosm/internal/tc"
+	"github.com/kakeetopius/qosm/internal/qos"
 	"github.com/spf13/cobra"
 )
 
@@ -28,19 +26,18 @@ func RestoreCmd() *cobra.Command {
 }
 
 func runRestore() error {
-	htbCtx, err := htb.NewHTBCtx()
+	qosManager, err := qos.NewManager()
 	if err != nil {
 		return err
 	}
-	defer htbCtx.Close()
 	if debug {
 		logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}))
-		htbCtx.WithLogger(logger)
+		qosManager.WithLogger(logger)
 	}
 
-	err = htbCtx.InitHTBFilter(true)
+	err = qosManager.InitQoSClassifier(true)
 	if err != nil {
 		return err
 	}
@@ -50,12 +47,12 @@ func runRestore() error {
 		return err
 	}
 
-	err = rules.InitSavedRules(dbConn, htbCtx, htbCtx.Logger)
+	err = qosManager.InitSavedRules(dbConn)
 	if err != nil {
 		return err
 	}
 
-	err = tc.InitSavedInterfaceSettings(dbConn, htbCtx)
+	err = qosManager.InitSavedInterfaceSettings(dbConn)
 	if err != nil {
 		return err
 	}

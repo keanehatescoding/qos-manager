@@ -9,10 +9,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kakeetopius/qosm/internal/core/htb"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/rules"
-	"github.com/kakeetopius/qosm/internal/tc"
+	"github.com/kakeetopius/qosm/internal/qos"
 )
 
 type Interface struct {
@@ -21,11 +19,11 @@ type Interface struct {
 }
 
 type ServerCtx struct {
-	DB       *sql.DB
-	Logger   *slog.Logger
-	Ifaces   map[string]Interface
-	HTBCtx   *htb.HTBCtx
-	Settings *db.Settings
+	DB         *sql.DB
+	Logger     *slog.Logger
+	Ifaces     map[string]Interface
+	QoSManager *qos.QoSManager
+	Settings   *db.Settings
 }
 
 type ServerError struct {
@@ -68,25 +66,25 @@ func (app *ServerCtx) InitTcState() error {
 		}
 	}
 
-	htbCtx, err := htb.NewHTBCtx()
+	qosManager, err := qos.NewManager()
 	if err != nil {
 		return err
 	}
-	htbCtx.WithLogger(app.Logger)
+	qosManager.WithLogger(app.Logger)
 
-	err = htbCtx.InitHTBFilter(true)
+	err = qosManager.InitQoSClassifier(true)
 	if err != nil {
 		return err
 	}
-	app.HTBCtx = htbCtx
+	app.QoSManager = qosManager
 	app.Ifaces = allIfaces
 
-	err = rules.InitSavedRules(app.DB, app.HTBCtx, app.Logger)
+	err = app.QoSManager.InitSavedRules(app.DB)
 	if err != nil {
 		return err
 	}
 
-	err = tc.InitSavedInterfaceSettings(app.DB, htbCtx)
+	err = app.QoSManager.InitSavedInterfaceSettings(app.DB)
 	if err != nil {
 		return err
 	}

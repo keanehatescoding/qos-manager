@@ -9,28 +9,29 @@ import (
 	"github.com/kakeetopius/qosm/internal/db"
 )
 
-func EnableTcOnInterface(iface net.Interface, htbCtx *htb.HTBCtx, dbConn *sql.DB) (err error) {
+func (m *QoSManager) EnableTcOnInterface(iface net.Interface, dbConn *sql.DB) (err error) {
 	defer func() {
 		if err != nil {
 			db.AddErrorLog(dbConn, err, "")
 		} else {
-			addSuccessLog(dbConn, iface.Name)
+			addTCEnabledLog(dbConn, iface.Name)
 		}
 	}()
 
-	if htbCtx == nil {
-		return fmt.Errorf("htb context not intialised")
-	}
-	err = htbCtx.InitHTBOnIface(iface.Name)
+	htbIface, err := htb.InitHTBOnIface(m.TcConn, iface, m.Logger)
 	if err != nil {
 		return err
 	}
+	if m.HTBIfaces == nil {
+		m.HTBIfaces = make(map[int]htb.HTBIface)
+	}
+	m.HTBIfaces[iface.Index] = htbIface
 
-	if htbCtx.NFTFilter == nil {
-		return fmt.Errorf("nft filter not intialised")
+	if m.Classifier == nil {
+		return fmt.Errorf("nft classifier not intialised")
 	}
 
-	err = htbCtx.NFTFilter.AddIfaceRules(iface.Index)
+	err = m.Classifier.AddIfaceRules(iface.Index)
 	if err != nil {
 		return err
 	}
@@ -47,25 +48,26 @@ func EnableTcOnInterface(iface net.Interface, htbCtx *htb.HTBCtx, dbConn *sql.DB
 	return nil
 }
 
-func DisableTcOnInterface(iface net.Interface, htbCtx *htb.HTBCtx, dbConn *sql.DB) (err error) {
+func (m *QoSManager) DisableTcOnInterface(iface net.Interface, dbConn *sql.DB) (err error) {
 	defer func() {
 		if err != nil {
 			db.AddErrorLog(dbConn, err, "")
 		} else {
-			addDeleteLog(dbConn, iface.Name)
+			addTCDisabledLog(dbConn, iface.Name)
 		}
 	}()
 
-	if htbCtx == nil {
-		return fmt.Errorf("htb context not intialised")
+	if m.Classifier == nil {
+		return fmt.Errorf("nft classifier not intialised")
 	}
-	err = htbCtx.FlushQdisc(iface.Index)
+	err = htb.FlushQdiscFromIface(m.TcConn, iface.Index)
 	if err != nil {
 		return err
 	}
+	delete(m.HTBIfaces, iface.Index)
 
-	if htbCtx.NFTFilter != nil {
-		err = htbCtx.NFTFilter.DeleteIfaceRules(iface.Index)
+	if m.Classifier != nil {
+		err = m.Classifier.DeleteIfaceRules(iface.Index)
 		if err != nil {
 			return err
 		}
@@ -79,11 +81,8 @@ func DisableTcOnInterface(iface net.Interface, htbCtx *htb.HTBCtx, dbConn *sql.D
 	return nil
 }
 
-func InitSavedInterfaceSettings(dbConn *sql.DB, htbCtx *htb.HTBCtx) error {
-	if htbCtx == nil {
-		return fmt.Errorf("htb context not intialised")
-	}
-	if htbCtx.NFTFilter == nil {
+func (m *QoSManager) InitSavedInterfaceSettings(dbConn *sql.DB) error {
+	if m.Classifier == nil {
 		return fmt.Errorf("nft filter not intialised")
 	}
 	enableIfaces, err := db.GetEnabledInterfaces(dbConn)
@@ -92,35 +91,25 @@ func InitSavedInterfaceSettings(dbConn *sql.DB, htbCtx *htb.HTBCtx) error {
 	}
 
 	for _, iface := range enableIfaces {
-		err := htbCtx.InitHTBOnIface(iface.Name)
+		dev, err := net.InterfaceByName(iface.Name)
 		if err != nil {
 			return err
 		}
-		err = htbCtx.NFTFilter.AddIfaceRules(iface.IfaceIndex)
+
+		if m.HTBIfaces == nil {
+			m.HTBIfaces = make(map[int]htb.HTBIface)
+		}
+		htbIface, err := htb.InitHTBOnIface(m.TcConn, *dev, m.Logger)
+		if err != nil {
+			return err
+		}
+		m.HTBIfaces[dev.Index] = htbIface
+
+		err = m.Classifier.AddIfaceRules(iface.IfaceIndex)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func addSuccessLog(dbCon *sql.DB, iface string) error {
-	return db.AddLog(
-		dbCon,
-		db.Log{
-			EventType:   "TC",
-			Description: fmt.Sprintf("enabled traffic control on interface %s", iface),
-		},
-	)
-}
-
-func addDeleteLog(dbCon *sql.DB, iface string) error {
-	return db.AddLog(
-		dbCon,
-		db.Log{
-			EventType:   "TC",
-			Description: fmt.Sprintf("disabled traffic control on interface %s", iface),
-		},
-	)
 }

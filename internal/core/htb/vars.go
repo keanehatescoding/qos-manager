@@ -5,6 +5,7 @@ import (
 
 	"github.com/florianl/go-tc/core"
 	"github.com/kakeetopius/qosm/internal/core/nft"
+	"github.com/kakeetopius/qosm/internal/prio"
 )
 
 //1: Root (The HTB classfull qdisc to be attached at egress)
@@ -35,7 +36,7 @@ func HighClass() *HTBClass {
 	return &HTBClass{
 		Handle:       HTBHIGHPRIOCLASSHANDLE,
 		ParentHandle: HTBPARENTCLASSHANDLE,
-		Priority:     Priority(HTBHIGHCLASSPRIO),
+		Priority:     prio.Priority(HTBHIGHCLASSPRIO),
 		Rate:         bytesPerSecFromMBsPerSec(50),
 		Burst:        calcBurst(50),
 		Cburst:       calcBurst(50),
@@ -46,7 +47,7 @@ func LowClass() *HTBClass {
 	return &HTBClass{
 		Handle:       HTBLOWPRIOCLASSHANDLE,
 		ParentHandle: HTBPARENTCLASSHANDLE,
-		Priority:     Priority(HTBLOWCLASSPRIO),
+		Priority:     prio.Priority(HTBLOWCLASSPRIO),
 		Rate:         bytesPerSecFromMBsPerSec(10),
 		Burst:        calcBurst(10),
 		Cburst:       calcBurst(10),
@@ -57,7 +58,7 @@ func DefaultClass() *HTBClass {
 	return &HTBClass{
 		Handle:       HTBDEFAULTCLASSHANDLE,
 		ParentHandle: HTBPARENTCLASSHANDLE,
-		Priority:     Priority(HTBDEFAULTCLASSPRIO),
+		Priority:     prio.Priority(HTBDEFAULTCLASSPRIO),
 		Rate:         bytesPerSecFromMBsPerSec(40),
 		Burst:        calcBurst(40),
 		Cburst:       calcBurst(40),

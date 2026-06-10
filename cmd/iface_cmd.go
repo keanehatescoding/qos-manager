@@ -7,10 +7,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/kakeetopius/qosm/internal/core/htb"
 	"github.com/kakeetopius/qosm/internal/core/nft"
 	"github.com/kakeetopius/qosm/internal/db"
-	"github.com/kakeetopius/qosm/internal/tc"
+	"github.com/kakeetopius/qosm/internal/qos"
 	"github.com/spf13/cobra"
 )
 
@@ -41,19 +40,18 @@ func IfaceEnableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			htbCtx, err := htb.NewHTBCtx()
+			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
-			defer htbCtx.Close()
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
-				htbCtx.WithLogger(logger)
+				qosManager.WithLogger(logger)
 			}
 
-			err = htbCtx.InitHTBFilter(true)
+			err = qosManager.InitQoSClassifier(true)
 			if err != nil {
 				return err
 			}
@@ -63,7 +61,7 @@ func IfaceEnableCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf(" Interface %v -> %w", iface, err)
 				}
-				err = tc.EnableTcOnInterface(*dev, htbCtx, dbConn)
+				err = qosManager.EnableTcOnInterface(*dev, dbConn)
 				if err != nil {
 					return fmt.Errorf(" Interface %v -> %w", iface, err)
 				}
@@ -88,24 +86,22 @@ func IfaceDisableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			htbCtx, err := htb.NewHTBCtx()
+			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
-			defer htbCtx.Close()
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
-				htbCtx.WithLogger(logger)
+				qosManager.WithLogger(logger)
 			}
 
-			err = htbCtx.InitHTBFilter(false)
+			err = qosManager.InitQoSClassifier(false)
 			if err != nil {
 				if !errors.Is(err, nft.ErrTableNotFound) {
 					return err
 				}
-				htbCtx.NFTFilter = nil
 			}
 
 			for _, iface := range args {
@@ -113,7 +109,7 @@ func IfaceDisableCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf(" Interface %v -> %w", iface, err)
 				}
-				err = tc.DisableTcOnInterface(*dev, htbCtx, dbCon)
+				err = qosManager.DisableTcOnInterface(*dev, dbCon)
 				if err != nil {
 					return fmt.Errorf(" Interface %v -> %w", iface, err)
 				}
@@ -134,19 +130,18 @@ func IfaceStats() *cobra.Command {
 		Aliases: []string{"s"},
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			htbCtx, err := htb.NewHTBCtx()
+			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
-			defer htbCtx.Close()
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
-				htbCtx.WithLogger(logger)
+				qosManager.WithLogger(logger)
 			}
 
-			err = htbCtx.InitHTBFilter(false)
+			err = qosManager.InitQoSClassifier(false)
 			if err != nil {
 				return err
 			}
@@ -156,7 +151,7 @@ func IfaceStats() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			stats, err := htbCtx.NFTFilter.GetIfaceRuleStats(dev.Index)
+			stats, err := qosManager.Classifier.GetIfaceRuleStats(dev.Index)
 			if err != nil {
 				var errRuleNotFound nft.ErrRuleNotFound
 				if errors.As(err, &errRuleNotFound) {
