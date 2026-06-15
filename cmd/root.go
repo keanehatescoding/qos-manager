@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path"
 
+	goversion "github.com/caarlos0/go-version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,13 +19,12 @@ var (
 	appConfig *viper.Viper
 )
 
-var qosVersion = "qosm v0.0.1"
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:          "qosm",
 	Short:        "A quality of service manager.",
 	SilenceUsage: true,
+	Version:      buildVersion().GitVersion,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig()
 	},
@@ -97,10 +97,10 @@ func initConfig() error {
 func versionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "version",
-		Short:   "Show the version",
+		Short:   "Show detailed version information",
 		Aliases: []string{"v"},
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(qosVersion)
+			fmt.Println(buildVersion().String())
 		},
 	}
 }
@@ -126,4 +126,10 @@ func configDir() (string, error) {
 	} else {
 		return os.UserConfigDir()
 	}
+}
+
+func buildVersion() goversion.Info {
+	return goversion.GetVersionInfo(
+		goversion.WithAppDetails("qosm", "A quality of service manager", ""),
+	)
 }

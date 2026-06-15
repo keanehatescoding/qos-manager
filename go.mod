@@ -3,6 +3,7 @@ module github.com/kakeetopius/qosm
 go 1.25.9
 
 require (
+	github.com/caarlos0/go-version v0.2.2
 	github.com/florianl/go-tc v0.4.8
 	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-contrib/sessions v1.1.0
