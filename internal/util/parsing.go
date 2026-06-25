@@ -1,4 +1,4 @@
-// Package util  provides some helper functions.
+// Package util contains some utility functions.
 package util
 
 import (
@@ -25,20 +25,31 @@ type ipParseError struct {
 //
 // Example: "10.1.1.1/24,10.1.1.1,10.1.1.1-2"
 //
-// Returns an error if any target string cannot be parsed.
+// Returns an error if any target string cannot be parsed or the string is empty
 func TargetsFromString(s string) ([]netip.Prefix, error) {
+	if s == "" {
+		return nil, fmt.Errorf("no targets provided")
+	}
+
 	targetStrings := strings.Split(s, ",")
 	targets := make([]netip.Prefix, 0, 5)
+	seenStrings := make(map[string]struct{})
 
 	for _, targetString := range targetStrings {
 		if targetString == "" {
-			return nil, fmt.Errorf("error parsing targets -> one of the targets is empty")
+			return nil, fmt.Errorf("invalid target specification string: %s", s)
 		}
+		if _, seen := seenStrings[targetString]; seen {
+			continue
+		}
+		targetString = strings.Trim(targetString, " ")
 		targetaddrs, err := parseTargetString(targetString)
 		if err != nil {
 			return nil, err
 		}
 		targets = append(targets, targetaddrs...)
+
+		seenStrings[targetString] = struct{}{}
 	}
 
 	return Unique(targets), nil
@@ -58,25 +69,33 @@ func TargetsFromString(s string) ([]netip.Prefix, error) {
 // Returns:
 //   - A deduplicated slice of netip.Prefix values
 //   - A map of resolved IP addresses to their original hostname strings
-//   - An error if DNS lookup fails for any unresolvable target
+//   - An error if DNS lookup fails for any unresolvable target or if the string provided is empty.
 func TargetsFromStringWithDNSLookup(s string) ([]netip.Prefix, map[netip.Addr]string, error) {
-	// For dns lookup incase ip address parsing fails.
+	if s == "" {
+		return nil, nil, fmt.Errorf("no targets provided")
+	}
 	resolver := net.Resolver{}
 	commaSeparatedTargets := strings.Split(s, ",")
 	targets := make([]netip.Prefix, 0, 5)
 	hostNames := make(map[netip.Addr]string)
 
+	seenStrings := make(map[string]struct{})
+
 	for _, targetString := range commaSeparatedTargets {
 		if targetString == "" {
-			return nil, nil, fmt.Errorf("error parsing targets -> one of the targets is empty")
+			return nil, nil, fmt.Errorf("invalid target specification string: %s", s)
 		}
+		if _, seen := seenStrings[targetString]; seen {
+			continue
+		}
+		targetString = strings.Trim(targetString, " ")
 		targetAddr, err := parseTargetString(targetString)
 		if err != nil {
 			if err, ok := err.(ipParseError); ok && err.skipResolving {
 				return nil, nil, err
 			}
 
-			// if some errors occured while Parsing assume it is domain name
+			// if some other error occured while Parsing assume it is domain name
 			IPs, resolverErr := resolver.LookupIP(context.Background(), "ip4", strings.TrimSpace(targetString))
 			if resolverErr != nil {
 				return nil, nil, resolverErr
@@ -97,6 +116,8 @@ func TargetsFromStringWithDNSLookup(s string) ([]netip.Prefix, map[netip.Addr]st
 		} else {
 			targets = append(targets, targetAddr...)
 		}
+
+		seenStrings[targetString] = struct{}{}
 	}
 
 	return Unique(targets), hostNames, nil
@@ -181,23 +202,9 @@ func parseIPRange(s string) ([]netip.Prefix, error) {
 		return nil, fmt.Errorf("error parsing target %v -> %w", s, err)
 	}
 
-	if lower > upper {
-		return nil, ipParseError{
-			error:         fmt.Errorf("error parsing target %v -> invalid range", s),
-			skipResolving: true,
-		}
-	} else if lower < 0 {
-		return nil, ipParseError{
-			error:         fmt.Errorf("error parsing target %v -> range cannot be below zero", s),
-			skipResolving: true,
-		}
-	}
-
-	if upper-lower > 1000 {
-		return nil, ipParseError{
-			skipResolving: true,
-			error:         fmt.Errorf("range %v is too large. Consider using CIDR notation", s),
-		}
+	err = validateIPLimits(s, upper, lower)
+	if err != nil {
+		return nil, err
 	}
 
 	for i := lower; i <= upper; i++ {
@@ -217,6 +224,35 @@ func parseIPRange(s string) ([]netip.Prefix, error) {
 	}
 
 	return ipPrefixes, nil
+}
+
+func validateIPLimits(s string, upper, lower int) error {
+	if upper > 255 {
+		return ipParseError{
+			error:         fmt.Errorf("error parsing target %v -> range cannot go above 255", s),
+			skipResolving: true,
+		}
+	}
+	if lower < 0 {
+		return ipParseError{
+			error:         fmt.Errorf("error parsing target %v -> range cannot be below zero", s),
+			skipResolving: true,
+		}
+	}
+	if lower > upper {
+		return ipParseError{
+			error:         fmt.Errorf("error parsing target %v -> invalid range", s),
+			skipResolving: true,
+		}
+	}
+	if upper-lower > 1000 {
+		return ipParseError{
+			skipResolving: true,
+			error:         fmt.Errorf("range %v is too large. Consider using CIDR notation", s),
+		}
+	}
+
+	return nil
 }
 
 // Unique returns a new slice containing the first occurrence of each distinct
