@@ -52,13 +52,13 @@ func Run(opts ServerOptions) error {
 		logOptions = &slog.HandlerOptions{Level: slog.LevelDebug}
 	}
 
-	app := routes.ServerCtx{
+	app := server.Server{
 		Logger:   slog.New(slog.NewJSONHandler(os.Stdout, logOptions)),
 		DB:       dbConn,
 		Settings: settings,
 	}
 
-	err = app.InitTcState()
+	err = app.Init()
 	if err != nil {
 		return err
 	}

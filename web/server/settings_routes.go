@@ -1,4 +1,4 @@
-package routes
+package server
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/kakeetopius/qosm/internal/db"
 )
 
-func (app *ServerCtx) PostSystemSettings(c *gin.Context) {
+func (app *Server) PostSystemSettings(c *gin.Context) {
 	loggingLevel := c.PostForm("logging_level")
 	var maxBandwidth int
 	fmt.Sscanf(c.PostForm("max_bandwidth"), "%d", &maxBandwidth)
@@ -33,16 +33,19 @@ func (app *ServerCtx) PostSystemSettings(c *gin.Context) {
 	SendSuccessMessage(c)
 }
 
-func (app *ServerCtx) PostInterfaceSettings(c *gin.Context) {
+func (app *Server) PostInterfaceSettings(c *gin.Context) {
 	ifaceNames := c.PostFormArray("interfaces")
 
 	var err error
-	for _, iface := range app.Ifaces {
-		if slices.Contains(ifaceNames, iface.Name) {
-			err = enableQoS(app, iface.Name)
-		} else {
-			err = disableQoS(app, iface.Name)
+	ifaces := app.QoSManager.Ifaces
+	for _, iface := range ifaces {
+		ifaceChecked := slices.Contains(ifaceNames, iface.Name) // checkbox marked by use
+		if ifaceChecked && !iface.Enabled {
+			err = app.QoSManager.EnableTcOnInterface(iface.Name, app.DB)
+		} else if !ifaceChecked && iface.Enabled {
+			err = app.QoSManager.DisableTcOnInterface(iface.Name, app.DB)
 		}
+
 		if err != nil {
 			c.Error(err)
 			return
@@ -52,7 +55,7 @@ func (app *ServerCtx) PostInterfaceSettings(c *gin.Context) {
 	SendSuccessMessage(c)
 }
 
-func (app *ServerCtx) PostDNSSettings(c *gin.Context) {
+func (app *Server) PostDNSSettings(c *gin.Context) {
 	primaryDNS := c.PostForm("primary_dns")
 	dnsOverride := c.PostForm("dns_override") == "on"
 
@@ -80,7 +83,7 @@ func (app *ServerCtx) PostDNSSettings(c *gin.Context) {
 	SendSuccessMessage(c)
 }
 
-func (app *ServerCtx) PostSecuritySettings(c *gin.Context) {
+func (app *Server) PostSecuritySettings(c *gin.Context) {
 	var sessionTimeout int
 
 	fmt.Sscanf(c.PostForm("session_timeout"), "%d", &sessionTimeout)
@@ -105,38 +108,4 @@ func SendSuccessMessage(c *gin.Context, message ...string) {
 	c.HTML(http.StatusOK, "toast_success", gin.H{
 		"Message": msg,
 	})
-}
-
-func enableQoS(app *ServerCtx, ifaceName string) error {
-	iface := app.Ifaces[ifaceName]
-
-	if iface.Enabled {
-		return nil
-	}
-
-	err := app.QoSManager.EnableTcOnInterface(net.Interface{Name: iface.Name, Index: iface.Index}, app.DB)
-	if err != nil {
-		return err
-	}
-
-	iface.Enabled = true
-	app.Ifaces[ifaceName] = iface
-
-	return nil
-}
-
-func disableQoS(app *ServerCtx, ifaceName string) error {
-	iface := app.Ifaces[ifaceName]
-	if !iface.Enabled {
-		return nil
-	}
-
-	err := app.QoSManager.DisableTcOnInterface(net.Interface{Name: iface.Name, Index: iface.Index}, app.DB)
-	if err != nil {
-		return err
-	}
-
-	iface.Enabled = false
-	app.Ifaces[ifaceName] = iface
-	return nil
 }

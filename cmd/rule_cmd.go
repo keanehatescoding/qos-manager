@@ -43,6 +43,8 @@ func RuleAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
@@ -59,6 +61,7 @@ func RuleAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbConn.Close()
 
 			switch ruleType {
 			case "ip":
@@ -96,6 +99,8 @@ func RuleDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
@@ -115,6 +120,7 @@ func RuleDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbConn.Close()
 
 			switch ruleType {
 			case "domain":
@@ -149,10 +155,13 @@ func RuleFlushCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			dbConn, err := db.NewConn(appConfig.GetString("db.path"))
 			if err != nil {
 				return err
 			}
+			defer dbConn.Close()
 
 			err = qosManager.DeleteAllRules(dbConn)
 			if err != nil {
@@ -176,10 +185,14 @@ func RuleListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbConn.Close()
+
 			qosManger, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
+			defer qosManger.Close()
+
 			highPrio, err := qosManger.GetHighPriority(dbConn)
 			if err != nil {
 				return err
@@ -233,11 +246,14 @@ func RuleRefreshCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbCon.Close()
 
 			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,

@@ -1,4 +1,4 @@
-package routes
+package server
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type PostForm struct {
 	Priority string `form:"priority"`
 }
 
-func (app *ServerCtx) PostRules(c *gin.Context) {
+func (app *Server) PostRules(c *gin.Context) {
 	var form PostForm
 
 	if err := c.ShouldBind(&form); err != nil {
@@ -43,7 +43,7 @@ func (app *ServerCtx) PostRules(c *gin.Context) {
 	SendSuccessMessage(c, "Successfully added rule.")
 }
 
-func (app *ServerCtx) DeleteRule(c *gin.Context) {
+func (app *Server) DeleteRule(c *gin.Context) {
 	ruleType := c.Param("type")
 	ruleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

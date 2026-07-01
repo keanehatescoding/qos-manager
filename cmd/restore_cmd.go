@@ -30,6 +30,8 @@ func runRestore() error {
 	if err != nil {
 		return err
 	}
+	defer qosManager.Close()
+
 	if debug {
 		logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,

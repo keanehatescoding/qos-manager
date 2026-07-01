@@ -108,7 +108,7 @@ func AddDomainIPstoDB(db *sql.DB, domainName string, ips []netip.Prefix) error {
 	return nil
 }
 
-func GetAllDomainRulesWithoutIPs(db *sql.DB) ([]DomainRule, error) {
+func GetAllDomainRules(db *sql.DB) ([]DomainRule, error) {
 	rows, err := db.Query(`
 		SELECT id, domain_name, priority, created_at, last_resolved_at
 		FROM domainrules
@@ -127,6 +127,10 @@ func GetAllDomainRulesWithoutIPs(db *sql.DB) ([]DomainRule, error) {
 			return nil, err
 		}
 
+		err = addDomainIPs(db, &rule)
+		if err != nil {
+			return nil, err
+		}
 		rules = append(rules, rule)
 	}
 
@@ -137,19 +141,7 @@ func GetAllDomainRulesWithoutIPs(db *sql.DB) ([]DomainRule, error) {
 	return rules, err
 }
 
-func GetAllDomainRules(db *sql.DB) ([]DomainRule, error) {
-	rules, err := GetAllDomainRulesWithoutIPs(db)
-	if err != nil {
-		return nil, err
-	}
-	err = addDomainIPsToResult(db, rules)
-	if err != nil {
-		return nil, err
-	}
-	return rules, nil
-}
-
-func GetDomainRuleNameByWithoutIPs(db *sql.DB, name string) (DomainRule, error) {
+func GetDomainRuleByName(db *sql.DB, name string) (DomainRule, error) {
 	row := db.QueryRow(`
 		SELECT id, domain_name, priority, created_at, last_resolved_at
 		FROM domainrules
@@ -161,18 +153,12 @@ func GetDomainRuleNameByWithoutIPs(db *sql.DB, name string) (DomainRule, error) 
 	if err != nil {
 		return DomainRule{}, err
 	}
-
-	return rule, nil
-}
-
-func GetDomainRuleByName(db *sql.DB, name string) (DomainRule, error) {
-	rule, err := GetDomainRuleNameByWithoutIPs(db, name)
+	err = addDomainIPs(db, &rule)
 	if err != nil {
 		return DomainRule{}, err
 	}
-	err = addDomainIPsToResult(db, []DomainRule{rule})
 
-	return rule, err
+	return rule, nil
 }
 
 func GetDomainRuleByID(db *sql.DB, id int) (DomainRule, error) {
@@ -188,9 +174,8 @@ func GetDomainRuleByID(db *sql.DB, id int) (DomainRule, error) {
 		return DomainRule{}, err
 	}
 
-	rules := []DomainRule{rule}
-	err = addDomainIPsToResult(db, rules)
-	return rules[0], err
+	err = addDomainIPs(db, &rule)
+	return rule, err
 }
 
 func DeleteDomainRuleByID(db *sql.DB, id int, priority string) error {
@@ -262,6 +247,11 @@ func getDomainsOfPriority(db *sql.DB, priority string) ([]DomainRule, error) {
 			return nil, err
 		}
 
+		err = addDomainIPs(db, &rule)
+		if err != nil {
+			return nil, err
+		}
+
 		rules = append(rules, rule)
 	}
 
@@ -269,14 +259,10 @@ func getDomainsOfPriority(db *sql.DB, priority string) ([]DomainRule, error) {
 		return nil, err
 	}
 
-	err = addDomainIPsToResult(db, rules)
-	if err != nil {
-		return nil, err
-	}
 	return rules, nil
 }
 
-func addDomainIPsToResult(db *sql.DB, rules []DomainRule) error {
+func addDomainIPs(db *sql.DB, rule *DomainRule) error {
 	stmt, err := db.Prepare(`
 	SELECT id, ip, domain_id 
 	FROM domainips
@@ -287,38 +273,27 @@ func addDomainIPsToResult(db *sql.DB, rules []DomainRule) error {
 	}
 	defer stmt.Close()
 
-	for i := range rules {
-		ips, err := getDomainIPs(stmt, rules[i].ID)
-		if err != nil {
-			return err
-		}
-		rules[i].IPs = ips
-	}
-	return nil
-}
-
-func getDomainIPs(stmt *sql.Stmt, domainID int) ([]DomainIP, error) {
-	rows, err := stmt.Query(domainID)
+	rows, err := stmt.Query(rule.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var ips []DomainIP
-
 	for rows.Next() {
 		var ip DomainIP
 		err = rows.Scan(&ip.ID, &ip.IP, &ip.DomainID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		ips = append(ips, ip)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return err
 	}
 
-	return ips, nil
+	rule.IPs = ips
+	return nil
 }
 
 func addDomainRuleRow(db *sql.DB, row DomainRule) error {

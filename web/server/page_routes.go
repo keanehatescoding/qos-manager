@@ -1,5 +1,5 @@
-// Package routes contains server's routes
-package routes
+// Package server contains code for the web server
+package server
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ type DashBoardStats struct {
 	TotalIPs        int
 }
 
-func (app *ServerCtx) LoginPost(ctx *gin.Context) {
+func (app *Server) LoginPost(ctx *gin.Context) {
 	username := ctx.PostForm("username")
 	password := ctx.PostForm("password")
 
@@ -61,15 +61,15 @@ func (app *ServerCtx) LoginPost(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func (app *ServerCtx) LoginPage(c *gin.Context) {
+func (app *Server) LoginPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "login", gin.H{
 		"Title": "Login - QoS Manager",
 	})
 }
 
-func (app *ServerCtx) DashboardPage(c *gin.Context) {
+func (app *Server) DashboardPage(c *gin.Context) {
 	session := sessions.Default(c)
-	enabled := app.EnabledIfaces()
+	enabled := app.QoSManager.EnabledInterfaces()
 
 	allRules, err := app.QoSManager.GetAllRules(app.DB)
 	if err != nil {
@@ -94,7 +94,7 @@ func (app *ServerCtx) DashboardPage(c *gin.Context) {
 		"Enabled":     len(enabled) > 0,
 		"Rules":       rulesToDisplay,
 		"Stats":       dashBoardStats(allRules),
-		"Ifaces":      app.Ifaces,
+		"Ifaces":      app.QoSManager.Ifaces,
 	})
 }
 
@@ -122,7 +122,7 @@ func dashBoardStats(rules []qos.Rule) DashBoardStats {
 	return stats
 }
 
-func (app *ServerCtx) RulesPage(c *gin.Context) {
+func (app *Server) RulesPage(c *gin.Context) {
 	session := sessions.Default(c)
 	rules, err := app.QoSManager.GetAllRules(app.DB)
 	if err != nil {
@@ -140,7 +140,7 @@ func (app *ServerCtx) RulesPage(c *gin.Context) {
 	})
 }
 
-func (app *ServerCtx) AnalyticsPage(c *gin.Context) {
+func (app *Server) AnalyticsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	c.HTML(http.StatusOK, "analytics", gin.H{
 		"Title":       "Analytics - QoS Manager",
@@ -151,7 +151,7 @@ func (app *ServerCtx) AnalyticsPage(c *gin.Context) {
 	})
 }
 
-func (app *ServerCtx) SettingsPage(c *gin.Context) {
+func (app *Server) SettingsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	c.HTML(http.StatusOK, "settings", gin.H{
 		"Title":       "Settings - QoS Manager",
@@ -160,11 +160,11 @@ func (app *ServerCtx) SettingsPage(c *gin.Context) {
 		"User":        session.Get("username"),
 		"Role":        session.Get("role"),
 		"Settings":    app.Settings,
-		"Ifaces":      app.Ifaces,
+		"Ifaces":      app.QoSManager.Ifaces,
 	})
 }
 
-func (app *ServerCtx) Logout(c *gin.Context) {
+func (app *Server) Logout(c *gin.Context) {
 	session := sessions.Default(c)
 	username := session.Get("username").(string)
 
@@ -178,7 +178,7 @@ func (app *ServerCtx) Logout(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/login")
 }
 
-func (app *ServerCtx) LogsPage(c *gin.Context) {
+func (app *Server) LogsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	logs, stats, err := db.GetLogsWithStats(app.DB)
 	if err != nil {
@@ -196,7 +196,7 @@ func (app *ServerCtx) LogsPage(c *gin.Context) {
 	})
 }
 
-func (app *ServerCtx) LogsFilter(c *gin.Context) {
+func (app *Server) LogsFilter(c *gin.Context) {
 	filter := c.Query("event_filter")
 	if filter == "" {
 		filter = "all"
@@ -219,7 +219,7 @@ func (app *ServerCtx) LogsFilter(c *gin.Context) {
 	})
 }
 
-func (app *ServerCtx) LogsDelete(c *gin.Context) {
+func (app *Server) LogsDelete(c *gin.Context) {
 	err := db.DeleteAllLogs(app.DB)
 	if err != nil {
 		c.Error(err)

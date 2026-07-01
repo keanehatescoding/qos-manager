@@ -40,10 +40,14 @@ func IfaceEnableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbConn.Close()
+
 			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
@@ -57,11 +61,7 @@ func IfaceEnableCmd() *cobra.Command {
 			}
 
 			for _, iface := range args {
-				dev, err := net.InterfaceByName(iface)
-				if err != nil {
-					return fmt.Errorf(" Interface %v -> %w", iface, err)
-				}
-				err = qosManager.EnableTcOnInterface(*dev, dbConn)
+				err = qosManager.EnableTcOnInterface(iface, dbConn)
 				if err != nil {
 					return fmt.Errorf(" Interface %v -> %w", iface, err)
 				}
@@ -86,10 +86,14 @@ func IfaceDisableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbCon.Close()
+
 			qosManager, err := qos.NewManager()
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
@@ -105,11 +109,7 @@ func IfaceDisableCmd() *cobra.Command {
 			}
 
 			for _, iface := range args {
-				dev, err := net.InterfaceByName(iface)
-				if err != nil {
-					return fmt.Errorf(" Interface %v -> %w", iface, err)
-				}
-				err = qosManager.DisableTcOnInterface(*dev, dbCon)
+				err = qosManager.DisableTcOnInterface(iface, dbCon)
 				if err != nil {
 					return fmt.Errorf(" Interface %v -> %w", iface, err)
 				}
@@ -134,6 +134,8 @@ func IfaceStats() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer qosManager.Close()
+
 			if debug {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
@@ -184,6 +186,8 @@ func IfaceListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer dbCon.Close()
+
 			enabledIfaces, err := db.GetEnabledInterfaces(dbCon)
 			if err != nil {
 				return err

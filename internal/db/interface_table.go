@@ -8,13 +8,13 @@ import (
 
 var ErrNotExists = errors.New("requested object does not exist in the database")
 
-type Interface struct {
+type DBInterface struct {
 	IfaceIndex int
 	Name       string
 	Enabled    bool
 }
 
-func AddInterface(db *sql.DB, iface Interface) error {
+func AddInterface(db *sql.DB, iface DBInterface) error {
 	_, err := db.Exec(
 		`
 		INSERT OR REPLACE INTO interfaces (
@@ -62,7 +62,7 @@ func CheckInterfaceExistsByIndex(db *sql.DB, index int) (bool, error) {
 	return exists, nil
 }
 
-func GetAllInterfaces(db *sql.DB) ([]Interface, error) {
+func GetAllInterfaces(db *sql.DB) ([]DBInterface, error) {
 	rows, err := db.Query(`
 		SELECT if_index, name, enabled
 		FROM interfaces
@@ -72,11 +72,11 @@ func GetAllInterfaces(db *sql.DB) ([]Interface, error) {
 	}
 	defer rows.Close()
 
-	var interfaces []Interface
+	var interfaces []DBInterface
 	var enabled int
 
 	for rows.Next() {
-		var iface Interface
+		var iface DBInterface
 		err = rows.Scan(&iface.IfaceIndex, &iface.Name, &enabled)
 		if err != nil {
 			return nil, err
@@ -93,7 +93,7 @@ func GetAllInterfaces(db *sql.DB) ([]Interface, error) {
 	return interfaces, nil
 }
 
-func GetEnabledInterfaces(db *sql.DB) ([]Interface, error) {
+func GetEnabledInterfaces(db *sql.DB) ([]DBInterface, error) {
 	rows, err := db.Query(`
 		SELECT if_index, name, enabled
 		FROM interfaces
@@ -104,11 +104,11 @@ func GetEnabledInterfaces(db *sql.DB) ([]Interface, error) {
 	}
 	defer rows.Close()
 
-	var interfaces []Interface
+	var interfaces []DBInterface
 	var enabled int
 
 	for rows.Next() {
-		var iface Interface
+		var iface DBInterface
 		err = rows.Scan(&iface.IfaceIndex, &iface.Name, &enabled)
 		if err != nil {
 			return nil, err
@@ -125,38 +125,38 @@ func GetEnabledInterfaces(db *sql.DB) ([]Interface, error) {
 	return interfaces, nil
 }
 
-func InterfaceByName(db *sql.DB, name string) (Interface, error) {
+func InterfaceByName(db *sql.DB, name string) (DBInterface, error) {
 	row := db.QueryRow(`
 		SELECT if_index, name, enabled 
 		FROM interfaces
 		WHERE name = ?
 	`, name)
 
-	var iface Interface
+	var iface DBInterface
 	var enabled int
 
 	err := row.Scan(&iface.IfaceIndex, &iface.Name, &enabled)
 	if err != nil {
-		return Interface{}, err
+		return DBInterface{}, err
 	}
 	iface.Enabled = enabled == 1
 
 	return iface, nil
 }
 
-func InterfaceByIndex(db *sql.DB, index int) (Interface, error) {
+func InterfaceByIndex(db *sql.DB, index int) (DBInterface, error) {
 	row := db.QueryRow(`
 		SELECT if_index, name, enabled
 		FROM interfaces
 		WHERE if_index = ?
 	`, index)
 
-	var iface Interface
+	var iface DBInterface
 	var enabled int
 
 	err := row.Scan(&iface.IfaceIndex, &iface.Name, &enabled)
 	if err != nil {
-		return Interface{}, err
+		return DBInterface{}, err
 	}
 	iface.Enabled = enabled == 1
 

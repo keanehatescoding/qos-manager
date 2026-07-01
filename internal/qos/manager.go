@@ -3,18 +3,24 @@ package qos
 
 import (
 	"log/slog"
+	"net"
 
 	"github.com/florianl/go-tc"
 	"github.com/kakeetopius/qosm/internal/core/htb"
 	"github.com/kakeetopius/qosm/internal/core/nft"
 )
 
+type Interface struct {
+	net.Interface
+	htb.HTBIface
+	Enabled bool
+}
+
 type QoSManager struct {
 	TcConn     *tc.Tc
-	HTBIfaces  map[int]htb.HTBIface
+	Ifaces     map[string]Interface
 	Classifier *nft.NFT
-
-	Logger *slog.Logger
+	Logger     *slog.Logger
 }
 
 func NewManager() (*QoSManager, error) {
@@ -23,11 +29,22 @@ func NewManager() (*QoSManager, error) {
 		return nil, err
 	}
 
-	htbCtx := QoSManager{}
+	qosManager := QoSManager{
+		Ifaces: make(map[string]Interface),
+		TcConn: tcnl,
+	}
 
-	htbCtx.TcConn = tcnl
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, iface := range ifaces {
+		qosManager.Ifaces[iface.Name] = Interface{
+			Interface: iface,
+		}
+	}
 
-	return &htbCtx, nil
+	return &qosManager, nil
 }
 
 func (m *QoSManager) WithLogger(l *slog.Logger) {
@@ -45,4 +62,8 @@ func (m *QoSManager) InitQoSClassifier(createIfNotExists bool) error {
 	m.Classifier = &nftCtx
 
 	return nil
+}
+
+func (m *QoSManager) Close() {
+	m.TcConn.Close()
 }

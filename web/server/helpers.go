@@ -1,30 +1,16 @@
-package routes
+package server
 
 import (
 	"database/sql"
 	"embed"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kakeetopius/qosm/internal/db"
 	"github.com/kakeetopius/qosm/internal/qos"
 )
-
-type Interface struct {
-	net.Interface
-	Enabled bool
-}
-
-type ServerCtx struct {
-	DB         *sql.DB
-	Logger     *slog.Logger
-	Ifaces     map[string]Interface
-	QoSManager *qos.QoSManager
-	Settings   *db.Settings
-}
 
 type ServerError struct {
 	StatusCode int
@@ -35,37 +21,14 @@ func (e ServerError) Error() string {
 	return e.Err.Error()
 }
 
-func (app *ServerCtx) EnabledIfaces() []Interface {
-	ifaces := make([]Interface, 0, 5)
-
-	for _, iface := range app.Ifaces {
-		if !iface.Enabled {
-			continue
-		}
-		ifaces = append(ifaces, iface)
-	}
-
-	return ifaces
+type Server struct {
+	DB         *sql.DB
+	QoSManager *qos.QoSManager
+	Settings   *db.Settings
+	Logger     *slog.Logger
 }
 
-func (app *ServerCtx) InitTcState() error {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return err
-	}
-
-	allIfaces := make(map[string]Interface, len(ifaces))
-	for _, iface := range ifaces {
-		enabled, dbErr := db.InterfaceIsEnabled(app.DB, iface.Name)
-		if dbErr != nil {
-			return dbErr
-		}
-		allIfaces[iface.Name] = Interface{
-			Interface: iface,
-			Enabled:   enabled,
-		}
-	}
-
+func (app *Server) Init() error {
 	qosManager, err := qos.NewManager()
 	if err != nil {
 		return err
@@ -77,7 +40,6 @@ func (app *ServerCtx) InitTcState() error {
 		return err
 	}
 	app.QoSManager = qosManager
-	app.Ifaces = allIfaces
 
 	err = app.QoSManager.InitSavedRules(app.DB)
 	if err != nil {
@@ -92,7 +54,7 @@ func (app *ServerCtx) InitTcState() error {
 	return nil
 }
 
-func (app *ServerCtx) AddRoutes(router *gin.Engine) {
+func (app *Server) AddRoutes(router *gin.Engine) {
 	router.Use(ErrorHandlerHTML())
 
 	auth := router.Group("/")
@@ -120,7 +82,7 @@ func (app *ServerCtx) AddRoutes(router *gin.Engine) {
 	admin.GET("/", app.DashboardPage)
 }
 
-func (app *ServerCtx) AddStaticRoutes(router *gin.Engine, staticFS *embed.FS) error {
+func (app *Server) AddStaticRoutes(router *gin.Engine, staticFS *embed.FS) error {
 	staticSubFS, err := fs.Sub(staticFS, "static/js")
 	if err != nil {
 		return err

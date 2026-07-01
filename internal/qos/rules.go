@@ -69,7 +69,7 @@ func (m *QoSManager) AddDomainRule(dbCon *sql.DB, domain string, priority string
 		return rule, err
 	}
 
-	domainRule, err := db.GetDomainRuleNameByWithoutIPs(dbCon, domain)
+	domainRule, err := db.GetDomainRuleByName(dbCon, domain)
 	if err != nil {
 		return rule, err
 	}
@@ -309,7 +309,7 @@ func (m *QoSManager) GetAllRules(dbCon *sql.DB) ([]Rule, error) {
 	if err != nil {
 		return nil, err
 	}
-	domainRules, err := db.GetAllDomainRulesWithoutIPs(dbCon)
+	domainRules, err := db.GetAllDomainRules(dbCon)
 	if err != nil {
 		return nil, err
 	}

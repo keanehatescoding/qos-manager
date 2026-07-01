@@ -1,4 +1,4 @@
-package routes
+package server
 
 import (
 	"crypto/hkdf"
@@ -50,7 +50,7 @@ func ErrorHandlerHTML() gin.HandlerFunc {
 	}
 }
 
-func ErrorHandlerToast(app *ServerCtx) gin.HandlerFunc {
+func ErrorHandlerToast(app *Server) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Next()
 
@@ -68,7 +68,7 @@ func ErrorHandlerToast(app *ServerCtx) gin.HandlerFunc {
 	}
 }
 
-func AuthRequired(app *ServerCtx) gin.HandlerFunc {
+func AuthRequired(app *Server) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		session := sessions.Default(ctx)
 
@@ -89,7 +89,7 @@ func AuthRequired(app *ServerCtx) gin.HandlerFunc {
 	}
 }
 
-func (app *ServerCtx) SetUpSessionMiddleWare(router *gin.Engine, authKey string, encKey string) error {
+func (app *Server) SetUpSessionMiddleWare(router *gin.Engine, authKey string, encKey string) error {
 	derivedAuthKey, err := genKey(authKey, 64)
 	if err != nil {
 		return err
